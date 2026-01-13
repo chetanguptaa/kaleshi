@@ -23,6 +23,11 @@ enum UserType {
   ADMIN
 }
 
+enum CommentVoteType {
+  UP
+  DOWN
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
@@ -35,15 +40,16 @@ model User {
 }
 
 model Account {
-  id        String    @id @default(uuid())
-  coins     Int       @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
-  userId    Int       @unique
-  user      User      @relation(fields: [userId], references: [id])
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  orders    Order[]
-  comments  Comment[]
-  fills     Fill[]
+  id           String        @id @default(uuid())
+  coins        Int           @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
+  userId       Int           @unique
+  user         User          @relation(fields: [userId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  orders       Order[]
+  comments     Comment[]
+  fills        Fill[]
+  commentVotes CommentVote[]
 }
 
 model MarketCategory {
@@ -98,17 +104,43 @@ model Order {
   outcome   Outcome  @relation(fields: [outcomeId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @default(now())
+
+  @@index([outcomeId, price])
+  @@index([outcomeId, side])
+  @@index([createdAt])
+  @@index([accountId])
 }
 
 model Comment {
-  id        String   @id @default(uuid())
+  id        String        @id @default(uuid())
   comment   String
   accountId String
   marketId  Int
-  account   Account  @relation(fields: [accountId], references: [id])
-  market    Market   @relation(fields: [marketId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  parentId  String?
+  account   Account       @relation(fields: [accountId], references: [id])
+  market    Market        @relation(fields: [marketId], references: [id])
+  parent    Comment?      @relation("CommentThread", fields: [parentId], references: [id])
+  replies   Comment[]     @relation("CommentThread")
+  votes     CommentVote[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([marketId])
+  @@index([parentId])
+  @@index([createdAt])
+}
+
+model CommentVote {
+  id        String          @id @default(uuid())
+  accountId String
+  commentId String
+  vote      CommentVoteType
+  createdAt DateTime        @default(now())
+  account   Account         @relation(fields: [accountId], references: [id])
+  comment   Comment         @relation(fields: [commentId], references: [id])
+
+  @@unique([accountId, commentId])
+  @@index([commentId])
 }
 
 model Fill {
