@@ -35,14 +35,15 @@ model User {
 }
 
 model Account {
-  id          String       @id @default(uuid())
-  coins       Int          @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
-  userId      Int          @unique
-  user        User         @relation(fields: [userId], references: [id])
-  comments    Comment[]
-  predictions Prediction[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id        String    @id @default(uuid())
+  coins     Int       @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
+  userId    Int       @unique
+  user      User      @relation(fields: [userId], references: [id])
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  orders    Order[]
+  comments  Comment[]
+  fills     Fill[]
 }
 
 model MarketCategory {
@@ -65,14 +66,14 @@ model Market {
   ruleBook         String?
   rules            String?
   marketCategory   MarketCategory @relation(fields: [marketCategoryId], references: [id])
-  predictions      Prediction[]
-  trades           Trade[]
+  outcomes         Outcome[]
   comments         Comment[]
+  orders           Order[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 }
 
-model Trade {
+model Outcome {
   id        String   @id @default(uuid())
   name      String
   quantity  Int
@@ -81,17 +82,22 @@ model Trade {
   market    Market   @relation(fields: [marketId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  orders    Order[]
 }
 
-model Prediction {
+model Order {
   id        String   @id @default(uuid())
-  vote      VoteType
+  side      VoteType // BUY or SELL
+  price     Int // points / cents 0–100
+  quantity  Int // remaining open quantity
   marketId  Int
   accountId String
+  outcomeId String
   market    Market   @relation(fields: [marketId], references: [id])
   account   Account  @relation(fields: [accountId], references: [id])
+  outcome   Outcome  @relation(fields: [outcomeId], references: [id])
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt DateTime @default(now())
 }
 
 model Comment {
@@ -103,4 +109,16 @@ model Comment {
   market    Market   @relation(fields: [marketId], references: [id])
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Fill {
+  id          String   @id @default(uuid())
+  price       Int
+  quantity    Int
+  buyOrderId  String
+  sellOrderId String
+  contractId  String
+  accountId   String // buyer or seller
+  account     Account  @relation(fields: [accountId], references: [id])
+  createdAt   DateTime @default(now())
 }
