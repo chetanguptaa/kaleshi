@@ -53,22 +53,22 @@ model Account {
 }
 
 model MarketCategory {
-  id        Int              @id @default(autoincrement())
-  name      String           @unique
-  profile   String?
-  parentId  Int?
-  markets   Market[]
-  parent    MarketCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children  MarketCategory[] @relation("CategoryHierarchy")
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  information Json?
+  parentId    Int?
+  markets     Market[]
+  parent      MarketCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    MarketCategory[] @relation("CategoryHierarchy")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model Market {
   id               Int            @id @default(autoincrement())
   name             String
   marketCategoryId Int
-  profile          String?
+  information      Json?
   ruleBook         String?
   rules            String?
   marketCategory   MarketCategory @relation(fields: [marketCategoryId], references: [id])
