@@ -50,7 +50,7 @@ export class AuthService {
       });
       const token = this.signJwt({
         sub: user.id,
-        roles: user.userRoles,
+        roles: user.userRoles.map((ur) => ur.roleId),
         sid: session.id,
       });
       return { token };
@@ -68,10 +68,10 @@ export class AuthService {
     const match = await bcrypt.compare(password, user.password);
     if (!match) throw new UnauthorizedException('Invalid credentials');
     return this.prismaService.$transaction(async (tx) => {
-      await this.prismaService.session.deleteMany({
+      await tx.session.deleteMany({
         where: { userId: user.id },
       });
-      const session = await this.prismaService.session.create({
+      const session = await tx.session.create({
         data: {
           userId: user.id,
           expiresAt: add(new Date(), { days: 7 }),
@@ -79,7 +79,7 @@ export class AuthService {
       });
       const token = this.signJwt({
         sub: user.id,
-        roles: user.userRoles,
+        roles: user.userRoles.map((ur) => ur.roleId),
         sid: session.id,
       });
       return { token };
@@ -90,10 +90,15 @@ export class AuthService {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as unknown as {
         sub: number;
+        roles: string[];
+        sid: string;
       };
-      return await this.prismaService.user.findUnique({
+      const user = await this.prismaService.user.findUnique({
         where: { id: decoded.sub },
       });
+      if (user) {
+        return decoded;
+      }
     } catch {
       return null;
     }

@@ -1,6 +1,11 @@
 import { type Request } from 'express';
-import { User } from 'generated/prisma/client';
+
+export interface IRequestUser {
+  sub: number;
+  roles: string[];
+  sid: string;
+}
 
 export interface AppRequest extends Request {
-  user: User;
+  user: IRequestUser;
 }
