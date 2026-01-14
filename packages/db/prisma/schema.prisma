@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -29,14 +28,15 @@ enum CommentVoteType {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
+  id        Int       @id @default(autoincrement())
+  email     String    @unique
   password  String
-  type      UserType @default(COMMON)
+  type      UserType  @default(COMMON)
   name      String?
   account   Account?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sessions  Session[]
 }
 
 model Account {
@@ -153,4 +153,12 @@ model Fill {
   accountId   String // buyer or seller
   account     Account  @relation(fields: [accountId], references: [id])
   createdAt   DateTime @default(now())
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    Int      @unique
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  expiresAt DateTime
 }
