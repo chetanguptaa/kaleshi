@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -14,16 +15,20 @@ import { type Response } from 'express';
 import * as jwt from 'jsonwebtoken';
 import { type AppRequest } from '../@types/express';
 
-const signupSchema = z.object({
-  name: z.string().min(1),
-  email: z.email(),
-  password: z.string().min(8),
-});
+const signupSchema = z
+  .object({
+    name: z.string().min(1),
+    email: z.email(),
+    password: z.string().min(8),
+  })
+  .strict();
 
-const loginSchema = z.object({
-  email: z.email(),
-  password: z.string().min(8),
-});
+const loginSchema = z
+  .object({
+    email: z.email(),
+    password: z.string().min(8),
+  })
+  .strict();
 
 @Controller('auth')
 export class AuthController {
@@ -33,41 +38,44 @@ export class AuthController {
   async signup(@Body() raw: any, @Res({ passthrough: true }) res: Response) {
     const parsed = await signupSchema.safeParseAsync(raw);
     if (!parsed.success) {
-      throw parsed.error;
+      throw new BadRequestException('Invalid request body');
     }
     const { name, email, password } = parsed.data;
-    const { token, user } = await this.authService.signup(
-      name,
-      email,
-      password,
-    );
+    const { token } = await this.authService.signup(name, email, password);
     res.cookie('auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return { user: { id: user.id, name: user.name, email: user.email } };
+    return {
+      success: true,
+      token,
+    };
   }
 
   @Post('login')
   async login(@Body() raw: any, @Res({ passthrough: true }) res: Response) {
     const parsed = await loginSchema.safeParseAsync(raw);
     if (!parsed.success) {
-      throw parsed.error;
+      throw new BadRequestException('Invalid request body');
     }
     const { email, password } = parsed.data;
-    const { token, user } = await this.authService.login(email, password);
+    const { token } = await this.authService.login(email, password);
     res.cookie('auth', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    return { user: { id: user.id, name: user.name, email: user.email } };
+    return {
+      success: true,
+      token,
+    };
   }
 
   @Post('logout')
+  @UseGuards(AuthGuard)
   async logout(
     @Req() req: AppRequest,
     @Res({ passthrough: true }) res: Response,

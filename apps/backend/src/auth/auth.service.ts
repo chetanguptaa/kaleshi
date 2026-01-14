@@ -10,7 +10,7 @@ import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
 export class AuthService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(private readonly prismaService: PrismaService) {}
 
   async signup(name: string, email: string, password: string) {
     const existing = await this.prismaService.user.findUnique({
@@ -18,35 +18,72 @@ export class AuthService {
     });
     if (existing) throw new ConflictException('Email already registered');
     const passwordHash = await bcrypt.hash(password, 12);
-    const user = await this.prismaService.user.create({
-      data: { name, email, password: passwordHash },
+    return this.prismaService.$transaction(async (tx) => {
+      const role = await tx.role.findUnique({
+        where: { name: 'COMMON' },
+      });
+      if (!role) {
+        throw new Error(
+          'Base COMMON role not found. Seed roles before signup.',
+        );
+      }
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          password: passwordHash,
+          userRoles: {
+            create: {
+              roleId: role.id,
+            },
+          },
+        },
+        include: {
+          userRoles: true,
+        },
+      });
+      const session = await tx.session.create({
+        data: {
+          userId: user.id,
+          expiresAt: add(new Date(), { days: 7 }),
+        },
+      });
+      const token = this.signJwt({
+        sub: user.id,
+        roles: user.userRoles,
+        sid: session.id,
+      });
+      return { token };
     });
-    const session = await this.prismaService.session.create({
-      data: {
-        userId: user.id,
-        expiresAt: add(new Date(), { days: 7 }),
-      },
-    });
-    const token = this.signJwt({ sub: user.id, sid: session.id });
-    return { token, user };
   }
 
   async login(email: string, password: string) {
-    const user = await this.prismaService.user.findUnique({ where: { email } });
+    const user = await this.prismaService.user.findUnique({
+      where: { email },
+      include: {
+        userRoles: true,
+      },
+    });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const match = await bcrypt.compare(password, user.password);
     if (!match) throw new UnauthorizedException('Invalid credentials');
-    await this.prismaService.session.deleteMany({
-      where: { userId: user.id },
+    return this.prismaService.$transaction(async (tx) => {
+      await this.prismaService.session.deleteMany({
+        where: { userId: user.id },
+      });
+      const session = await this.prismaService.session.create({
+        data: {
+          userId: user.id,
+          expiresAt: add(new Date(), { days: 7 }),
+        },
+      });
+      const token = this.signJwt({
+        sub: user.id,
+        roles: user.userRoles,
+        sid: session.id,
+      });
+      return { token };
     });
-    const session = await this.prismaService.session.create({
-      data: {
-        userId: user.id,
-        expiresAt: add(new Date(), { days: 7 }),
-      },
-    });
-    const token = this.signJwt({ sub: user.id, sid: session.id });
-    return { token, user };
   }
 
   async verifyToken(token: string) {
