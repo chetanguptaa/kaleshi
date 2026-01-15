@@ -1,5 +1,6 @@
 use super::order::Order;
 use super::orderbook::OrderBook;
+use crate::engine::fill::FillEvent;
 use crate::infra::redis_publisher::publish_event;
 use serde_json::json;
 use std::collections::HashMap;
@@ -26,24 +27,10 @@ impl MatchingEngine {
         let book = self.get_or_create_book(&outcome_id);
         let (fills, remainder) = book.match_order(order);
         for fill in fills {
-            let event = json!({
-                "type": "fill.created",
-                "fillId": fill.fill_id,
-                "buyOrderId": fill.buy_order_id,
-                "sellOrderId": fill.sell_order_id,
-                "buyerAccountId": fill.buyer_account_id,
-                "sellerAccountId": fill.seller_account_id,
-                "price": fill.price,
-                "quantity": fill.quantity,
-                "marketId": fill.market_id,
-                "outcomeId": fill.outcome_id,
-                "timestamp": fill.timestamp
-            });
-            tokio::spawn(async move {
-                publish_event(&event).await;
-            });
+            Self::emit_filled(&fill)
         }
         if let Some(resting) = remainder {
+            MatchingEngine::emit_partial(&resting.order_id, resting.qty_remaining);
             let book = self.get_or_create_book(&resting.outcome_id);
             book.add_order(resting);
         }
@@ -51,21 +38,10 @@ impl MatchingEngine {
     }
 
     pub fn handle_cancel(&mut self, order_id: &str, account_id: &str) {
-        let (outcome_id, market_id) = match self.find_and_remove(order_id, account_id) {
-            Some(pair) => pair,
-            None => return, // Pointer: unknown or already filled/cancelled → ignore
-        };
-        let event = serde_json::json!({
-            "type": "order.cancelled",
-            "orderId": order_id,
-            "accountId": account_id,
-            "marketId": market_id,
-            "timestamp": chrono::Utc::now().timestamp_millis()
-        });
-        tokio::spawn(async move {
-            crate::infra::redis_publisher::publish_event(&event).await;
-        });
-        self.publish_depth(outcome_id, &market_id);
+        if let Some((outcome_id, market_id)) = self.find_and_remove(order_id, account_id) {
+            MatchingEngine::emit_cancelled(order_id, &outcome_id);
+            self.publish_depth(outcome_id, &market_id);
+        }
     }
 
     pub fn handle_recover_order(&mut self, order: Order) {
@@ -131,5 +107,47 @@ impl MatchingEngine {
             }
         }
         None
+    }
+
+    fn emit_filled(fill: &FillEvent) {
+        let event = json!({
+            "type": "order.filled",
+            "fillId": fill.fill_id,
+            "buyOrderId": fill.buy_order_id,
+            "sellOrderId": fill.sell_order_id,
+            "buyerAccountId": fill.buyer_account_id,
+            "sellerAccountId": fill.seller_account_id,
+            "price": fill.price,
+            "quantity": fill.quantity,
+            "timestamp": fill.timestamp
+        });
+        tokio::spawn(async move {
+            publish_event(&event).await;
+        });
+    }
+
+    fn emit_partial(order_id: &str, remaining: u32) {
+        let event = json!({
+            "type": "order.partial",
+            "orderId": order_id,
+            "remaining": remaining,
+            "timestamp": chrono::Utc::now().timestamp_millis()
+        });
+        let ev = event.clone();
+        tokio::spawn(async move {
+            publish_event(&ev).await;
+        });
+    }
+
+    fn emit_cancelled(order_id: &str, outcome_id: &str) {
+        let event = json!({
+            "type": "order.cancelled",
+            "orderId": order_id,
+            "outcomeId": outcome_id,
+            "timestamp": chrono::Utc::now().timestamp_millis()
+        });
+        tokio::spawn(async move {
+            publish_event(&event).await;
+        });
     }
 }

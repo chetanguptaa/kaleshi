@@ -10,24 +10,24 @@ pub async fn load_open_orders(
         sea_orm::DatabaseBackend::Sqlite,
         r#"
             SELECT
-            id, market_id, outcome_id, account_id, side, order_type, price, quantity, status, created_at
+                id, marketId, outcomeId, accountId, side, orderType, price, quantity, status, createdAt
             FROM "Order"
             WHERE status IN ('OPEN', 'PARTIAL')
-            ORDER BY created_at ASC")
+            ORDER BY createdAt ASC
         "#,
     );
     let rows: Vec<QueryResult> = db.query_all(query).await.unwrap();
     for row in rows {
         let order = Order {
-            order_id: row.try_get("", "order_id")?,
-            market_id: row.try_get("", "market_id")?,
-            outcome_id: row.try_get("", "outcome_id")?,
-            account_id: row.try_get("", "account_id")?,
+            order_id: row.try_get("", "orderId")?,
+            market_id: row.try_get("", "marketId")?,
+            outcome_id: row.try_get("", "outcomeId")?,
+            account_id: row.try_get("", "accountId")?,
             side: match row.try_get::<String>("", "side")?.as_str() {
                 "BUY" => Side::BUY,
                 _ => Side::SELL,
             },
-            order_type: match row.try_get::<String>("", "order_type")?.as_str() {
+            order_type: match row.try_get::<String>("", "orderType")?.as_str() {
                 "LIMIT" => OrderType::LIMIT,
                 _ => OrderType::MARKET,
             },
@@ -35,7 +35,7 @@ pub async fn load_open_orders(
             qty_remaining: row.try_get::<u32>("", "quantity")? as u32,
             qty_original: row.try_get::<u32>("", "originalQuantity")? as u32,
             timestamp: row
-                .try_get::<chrono::NaiveDateTime>("", "created_at")?
+                .try_get::<chrono::NaiveDateTime>("", "createdAt")?
                 .and_utc()
                 .timestamp_millis(),
         };

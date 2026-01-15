@@ -10,7 +10,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger, UsePipes, ValidationPipe } from '@nestjs/common';
 
 type SubscribeMessageType = {
-  ticker: string;
+  outcome_id: string;
 };
 
 @WebSocketGateway({
@@ -41,7 +41,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: SubscribeMessageType,
     @ConnectedSocket() client: Socket,
   ) {
-    const room = data.ticker;
+    const room = data.outcome_id;
     await client.join(room);
     this.logger.log(`Client ${client.id} subscribed to ${room}`);
     return { subscribed: room };
@@ -52,14 +52,14 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @MessageBody() data: SubscribeMessageType,
     @ConnectedSocket() client: Socket,
   ) {
-    const room = data.ticker;
+    const room = data.outcome_id;
     await client.leave(room);
     this.logger.log(`Client ${client.id} unsubscribed from ${room}`);
     return { unsubscribed: room };
   }
 
-  broadcastToMarket(ticker: string, event: string, payload: any) {
-    const room = ticker;
+  broadcastToMarket(outcome_id: string, event: string, payload: any) {
+    const room = outcome_id;
     if (this.server) {
       this.server.to(room).emit(event, payload);
     }
