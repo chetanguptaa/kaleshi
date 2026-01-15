@@ -11,6 +11,10 @@ import { RoleModule } from './role/role.module';
 import { MarketModule } from './market/market.module';
 import { OutcomeModule } from './outcome/outcome.module';
 import { CommentModule } from './market/comment/comment.module';
+import { RedisModule } from './redis/redis.module';
+import { OrderModule } from './order/order.module';
+import { FillModule } from './fill/fill.module';
+import { WsModule } from './websocket/ws.module';
 
 @Module({
   imports: [
@@ -26,6 +30,10 @@ import { CommentModule } from './market/comment/comment.module';
     MarketModule,
     OutcomeModule,
     CommentModule,
+    RedisModule,
+    OrderModule,
+    FillModule,
+    WsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

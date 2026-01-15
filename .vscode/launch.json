@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug NestJS (Turborepo / Node 22)",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeVersion": "22",
+      "program": "${workspaceFolder}/apps/backend/src/main.ts",
+      "cwd": "${workspaceFolder}/apps/backend",
+      "env": {
+        "NODE_ENV": "development",
+      },
+      "sourceMaps": true,
+      "outFiles": ["${workspaceFolder}/apps/backend/dist/**/*.js"],
+      "preLaunchTask": "turbo run build --filter=backend",
+      "restart": true,
+    },
+  ],
+}

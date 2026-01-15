@@ -14,7 +14,7 @@ datasource db {
   provider = "sqlite"
 }
 
-enum VoteType {
+enum OrderSide {
   BUY
   SELL
 }
@@ -22,6 +22,24 @@ enum VoteType {
 enum CommentVoteType {
   UP
   DOWN
+}
+
+enum OrderStatus {
+  OPEN
+  PARTIAL
+  FILLED
+  CANCELLED
+}
+
+enum OrderType {
+  LIMIT
+  MARKET
+}
+
+enum TimeInForce {
+  GTC
+  IOC
+  FOK
 }
 
 model User {
@@ -98,30 +116,35 @@ model Market {
 }
 
 model Outcome {
-  id        String   @id @default(uuid())
-  name      String
-  quantity  Int      @default(1)
-  price     Int      @default(99)
-  marketId  Int
-  market    Market   @relation(fields: [marketId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  orders    Order[]
+  id             String   @id @default(uuid())
+  name           String
+  marketId       Int
+  settledPrice   Int?
+  isResolved     Boolean?
+  winningOutcome Boolean?
+  market         Market   @relation(fields: [marketId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  orders         Order[]
 }
 
 model Order {
-  id        String   @id @default(uuid())
-  side      VoteType // BUY or SELL
-  price     Int // points / cents 0–100
-  quantity  Int // remaining open quantity
-  marketId  Int
-  accountId String
-  outcomeId String
-  market    Market   @relation(fields: [marketId], references: [id])
-  account   Account  @relation(fields: [accountId], references: [id])
-  outcome   Outcome  @relation(fields: [outcomeId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @default(now())
+  id               String      @id @default(uuid())
+  side             OrderSide // BUY or SELL
+  price            Int? // points / cents 0–100 and Pointer: Only required for limit orders
+  quantity         Int // remaining open quantity
+  originalQuantity Int
+  marketId         Int
+  accountId        String
+  outcomeId        String
+  status           OrderStatus @default(OPEN)
+  orderType        OrderType   @default(LIMIT)
+  timeInForce      TimeInForce @default(GTC)
+  market           Market      @relation(fields: [marketId], references: [id])
+  account          Account     @relation(fields: [accountId], references: [id])
+  outcome          Outcome     @relation(fields: [outcomeId], references: [id])
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @default(now())
 
   @@index([outcomeId, price])
   @@index([outcomeId, side])
@@ -142,8 +165,8 @@ model Comment {
   votes     CommentVote[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  isDeleted Boolean
-  deletedAt DateTime
+  isDeleted Boolean       @default(false)
+  deletedAt DateTime?
 
   @@index([marketId])
   @@index([parentId])
@@ -164,15 +187,16 @@ model CommentVote {
 }
 
 model Fill {
-  id          String   @id @default(uuid())
-  price       Int
-  quantity    Int
-  buyOrderId  String
-  sellOrderId String
-  contractId  String
-  accountId   String // buyer or seller
-  account     Account  @relation(fields: [accountId], references: [id])
-  createdAt   DateTime @default(now())
+  id              String   @id @default(uuid())
+  price           Int
+  quantity        Int
+  buyerOrderId    String
+  sellerOrderId   String
+  buyerAccountId  String
+  sellerAccountId String
+  account         Account? @relation(fields: [accountId], references: [id])
+  accountId       String?
+  createdAt       DateTime @default(now())
 }
 
 model Session {
