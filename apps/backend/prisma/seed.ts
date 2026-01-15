@@ -1,8 +1,8 @@
 // Seed script to see the dev database
 
+import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3';
 import * as bcrypt from 'bcrypt';
 import { PrismaClient } from 'generated/prisma/client';
-import { PrismaBetterSqlite3 } from 'node_modules/@prisma/adapter-better-sqlite3/dist/index.mjs';
 
 const prisma = new PrismaClient({
   adapter: new PrismaBetterSqlite3({
@@ -33,6 +33,7 @@ async function main() {
       name: 'Primary Admin',
       email: adminEmail,
       password: passwordHash,
+      isEmailVerified: true,
       userRoles: {
         create: {
           roleId: adminRole.id,
