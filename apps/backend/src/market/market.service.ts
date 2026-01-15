@@ -17,7 +17,6 @@ export class MarketService {
             marketCategoryId: body.marketCategoryId,
             startsAt: body.startsAt,
             endsAt: body.endsAt,
-            ticker: body.ticker,
             information: body.information ?? {},
             ruleBook: body.ruleBook ?? null,
             rules: body.rules ?? null,
@@ -25,7 +24,8 @@ export class MarketService {
         });
         await tx.outcome.createMany({
           data: body.outcomes.map((o) => ({
-            name: o,
+            name: o.name,
+            ticker: o.ticker,
             marketId: newMarket.id,
           })),
         });
