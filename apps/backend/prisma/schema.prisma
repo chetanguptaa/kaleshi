@@ -25,16 +25,15 @@ enum CommentVoteType {
 }
 
 model User {
-  id               Int              @id @default(autoincrement())
-  email            String           @unique
-  password         String
-  name             String
-  account          Account?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  sessions         Session[]
-  marketCategories MarketCategory[]
-  userRoles        UserRole[]
+  id        Int        @id @default(autoincrement())
+  email     String     @unique
+  password  String
+  name      String
+  account   Account?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  sessions  Session[]
+  userRoles UserRole[]
 }
 
 model Role {
@@ -66,17 +65,15 @@ model Account {
 }
 
 model MarketCategory {
-  id              Int              @id @default(autoincrement())
-  name            String           @unique
-  information     Json?
-  parentId        Int?
-  createdByUserId Int
-  markets         Market[]
-  parent          MarketCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children        MarketCategory[] @relation("CategoryHierarchy")
-  createdBy       User             @relation(fields: [createdByUserId], references: [id])
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id          Int              @id @default(autoincrement())
+  name        String           @unique
+  information Json?
+  parentId    Int?
+  markets     Market[]
+  parent      MarketCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children    MarketCategory[] @relation("CategoryHierarchy")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 model Market {

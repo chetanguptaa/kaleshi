@@ -7,6 +7,7 @@ import { AccountsModule } from './accounts/accounts.module';
 import { AdminModule } from './admin/admin.module';
 import configuration from './config/configuration';
 import { MarketCategoryModule } from './market-category/market-category.module';
+import { RoleModule } from './role/role.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { MarketCategoryModule } from './market-category/market-category.module';
     AccountsModule,
     AdminModule,
     MarketCategoryModule,
+    RoleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

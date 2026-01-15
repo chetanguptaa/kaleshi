@@ -1,31 +1,28 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TCreateMarketCategorySchema } from './market-category.controller';
+import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
 
 @Injectable()
 export class MarketCategoryService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async createMarketCategory(
-    userId: number,
-    body: TCreateMarketCategorySchema,
-  ) {
-    const marketCategory = await this.prismaService.marketCategory.findFirst({
-      where: {
-        name: body.name,
-      },
-    });
-    if (marketCategory) {
-      throw new BadRequestException(
-        'Market category with this name, already exists',
-      );
+  async createMarketCategory(body: TCreateMarketCategorySchema) {
+    try {
+      const newMarketCategory = await this.prismaService.marketCategory.create({
+        data: {
+          name: body.name,
+          information: body.information ?? {},
+        },
+      });
+      return { success: true, id: newMarketCategory.id };
+    } catch (e: any) {
+      if (e instanceof PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new BadRequestException(
+          'Market category with this name already exists',
+        );
+      }
+      throw e;
     }
-    return this.prismaService.marketCategory.create({
-      data: {
-        createdByUserId: userId,
-        name: body.name,
-        information: body.information ?? {},
-      },
-    });
   }
 }
