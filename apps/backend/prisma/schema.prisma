@@ -94,8 +94,8 @@ model Market {
 model Outcome {
   id        String   @id @default(uuid())
   name      String
-  quantity  Int
-  price     Int
+  quantity  Int      @default(1)
+  price     Int      @default(99)
   marketId  Int
   market    Market   @relation(fields: [marketId], references: [id])
   createdAt DateTime @default(now())

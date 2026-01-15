@@ -23,6 +23,18 @@ export type TCreateMarketCategorySchema = z.infer<
   typeof createMarketCategorySchema
 >;
 
+const createMarketCategoryChildSchema = z
+  .object({
+    name: z.string().min(3),
+    information: z.json().optional(),
+    parentId: z.number().int().min(1),
+  })
+  .strict();
+
+export type TCreateMarketCategoryChildSchema = z.infer<
+  typeof createMarketCategoryChildSchema
+>;
+
 @Controller('market-category')
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(ROLES_TO_ID_MAPPING.ADMIN)
@@ -36,5 +48,16 @@ export class MarketCategoryController {
       throw new BadRequestException('Invalid request body');
     }
     return await this.marketCategoryService.createMarketCategory(parsed.data);
+  }
+
+  @Post('child')
+  async createMarketCategoryChild(@Body() raw: any) {
+    const parsed = await createMarketCategoryChildSchema.safeParseAsync(raw);
+    if (!parsed.success) {
+      throw new BadRequestException('Invalid request body');
+    }
+    return await this.marketCategoryService.createMarketCategoryChild(
+      parsed.data,
+    );
   }
 }
