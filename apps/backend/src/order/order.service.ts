@@ -2,6 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TCreateOrderSchema } from './order.controller';
 import { RedisPublisherService } from 'src/redis/redis.publisher.service';
+import { OrderNewEvent } from 'src/redis/redis.event-types';
 
 @Injectable()
 export class OrderService {
@@ -39,11 +40,20 @@ export class OrderService {
         status: 'OPEN',
       },
     });
-    await this.redisPublisherService.publishOrderCommand({
+    const eventData: OrderNewEvent = {
       type: 'order.new',
-      orderId: order.id,
+      order_id: order.id,
+      market_id: order.marketId,
+      outcome_id: order.outcomeId,
+      account_id: accountId,
+      side: order.side,
+      order_type: order.orderType,
+      price: order.price,
+      qty_remaining: order.quantity,
+      qty_original: order.originalQuantity,
       timestamp: new Date().toISOString(),
-    });
+    };
+    await this.redisPublisherService.publishOrderCommand(eventData);
     return {
       success: true,
       id: order.id,

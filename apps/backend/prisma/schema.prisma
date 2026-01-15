@@ -119,7 +119,7 @@ model Outcome {
   id             String   @id @default(uuid())
   name           String
   marketId       Int
-  ticker         String
+  ticker         String   @unique
   settledPrice   Int?
   isResolved     Boolean?
   winningOutcome Boolean?

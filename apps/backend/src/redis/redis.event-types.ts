@@ -1,14 +1,16 @@
-import { OrderSide } from 'generated/prisma/enums';
+import { OrderSide, OrderType } from 'generated/prisma/enums';
 
 export type OrderNewEvent = {
   type: 'order.new';
-  orderId: string;
-  marketId: number;
-  outcomeId: string;
+  order_id: string;
+  market_id: number;
+  outcome_id: string;
+  account_id: string;
   side: OrderSide;
-  price: number;
-  quantity: number;
-  accountId: string;
+  order_type: OrderType;
+  price: number | null;
+  qty_remaining: number;
+  qty_original: number;
   timestamp: string;
 };
 
