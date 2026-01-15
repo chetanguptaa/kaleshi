@@ -18,11 +18,8 @@ export class AccountsController {
   constructor(private readonly accountsService: AccountsService) {}
 
   async createAccount(@Req() req: AppRequest) {
-    const user = req.user;
-    if (!user || !user.sub) {
-      throw new UnauthorizedException('You are not authorized');
-    }
-    const account = await this.accountsService.createAccount(user.sub);
+    const userId = req.user.sub;
+    const account = await this.accountsService.createAccount(userId);
     return {
       success: true,
       accountId: account.id,

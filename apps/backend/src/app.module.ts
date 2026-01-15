@@ -10,6 +10,7 @@ import { MarketCategoryModule } from './market-category/market-category.module';
 import { RoleModule } from './role/role.module';
 import { MarketModule } from './market/market.module';
 import { OutcomeModule } from './outcome/outcome.module';
+import { CommentModule } from './market/comment/comment.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { OutcomeModule } from './outcome/outcome.module';
     RoleModule,
     MarketModule,
     OutcomeModule,
+    CommentModule,
   ],
   controllers: [AppController],
   providers: [AppService],

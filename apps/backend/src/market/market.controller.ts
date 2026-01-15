@@ -46,11 +46,11 @@ const createMarketSchema = z
 export type TCreateMarketSchema = z.infer<typeof createMarketSchema>;
 
 @Controller('market')
-@UseGuards(AuthGuard, RolesGuard)
 export class MarketController {
   constructor(private readonly marketService: MarketService) {}
 
   @Post('')
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles(ROLES_TO_ID_MAPPING.ADMIN)
   async createMarket(@Body() raw: any) {
     const parsed = await createMarketSchema.safeParseAsync(raw);
@@ -61,6 +61,7 @@ export class MarketController {
   }
 
   @Post(':id/activate')
+  @UseGuards(AuthGuard, RolesGuard)
   @Roles(ROLES_TO_ID_MAPPING.ADMIN)
   async activateMarket(@Param() id: number) {
     return await this.marketService.activateMarket(id);
@@ -68,7 +69,7 @@ export class MarketController {
 
   @Get('')
   async getMarkets(@Req() req: AppRequest, @Query() type?: 'inactive') {
-    const userRoles = req.user.roles;
+    const userRoles = req.user?.roles || [];
     if (
       !userRoles.includes(ROLES_TO_ID_MAPPING.ADMIN) &&
       type &&
@@ -80,7 +81,8 @@ export class MarketController {
   }
 
   @Get(':id')
-  async getMarketById(@Param() id: number) {
-    return await this.marketService.getMarketById(id);
+  async getMarketById(@Req() req: AppRequest, @Param() id: number) {
+    const userRoles = req.user?.roles || [];
+    return await this.marketService.getMarketById(userRoles, id);
   }
 }

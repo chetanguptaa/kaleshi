@@ -41,6 +41,7 @@ export class AuthService {
         },
         include: {
           userRoles: true,
+          account: true,
         },
       });
       const session = await tx.session.create({
@@ -52,6 +53,7 @@ export class AuthService {
       const token = this.signJwt({
         sub: user.id,
         roles: user.userRoles.map((ur) => ur.roleId),
+        accountId: user.account ? user.account.id : null,
         sid: session.id,
       });
       return { token };
@@ -63,6 +65,7 @@ export class AuthService {
       where: { email },
       include: {
         userRoles: true,
+        account: true,
       },
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -81,6 +84,7 @@ export class AuthService {
       const token = this.signJwt({
         sub: user.id,
         roles: user.userRoles.map((ur) => ur.roleId),
+        accountId: user.account ? user.account.id : null,
         sid: session.id,
       });
       return { token };
