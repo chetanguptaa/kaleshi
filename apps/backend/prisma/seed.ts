@@ -6,7 +6,7 @@ import { PrismaBetterSqlite3 } from 'node_modules/@prisma/adapter-better-sqlite3
 
 const prisma = new PrismaClient({
   adapter: new PrismaBetterSqlite3({
-    url: 'file:./dev.db',
+    url: 'file:../data/dev.db',
   }),
 });
 
