@@ -18,6 +18,17 @@ export default async function handleOrderFill(event: OrderFilledEvent) {
       where: { id: fillId },
     });
     if (existing) return;
+    const buyer = await tx.account.findUnique({
+      where: { id: buyerAccountId },
+      select: { coins: true },
+    });
+    if (!buyer) throw new Error("Buyer account not found");
+    if (buyer.coins < totalValue) {
+      console.error(
+        `FATAL: insufficient balance buyer=${buyerAccountId} has=${buyer.coins} needs=${totalValue}`,
+      );
+      throw new Error("Insufficient funds to apply fill");
+    }
     await tx.fill.create({
       data: {
         id: fillId,
