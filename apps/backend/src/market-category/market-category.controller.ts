@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   UseGuards,
 } from '@nestjs/common';
@@ -36,12 +38,12 @@ export type TCreateMarketCategoryChildSchema = z.infer<
 >;
 
 @Controller('market-category')
-@UseGuards(AuthGuard, RolesGuard)
-@Roles(ROLES_TO_ID_MAPPING.ADMIN)
 export class MarketCategoryController {
   constructor(private readonly marketCategoryService: MarketCategoryService) {}
 
   @Post('')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(ROLES_TO_ID_MAPPING.ADMIN)
   async createMarketCategory(@Body() raw: any) {
     const parsed = await createMarketCategorySchema.safeParseAsync(raw);
     if (!parsed.success) {
@@ -51,6 +53,8 @@ export class MarketCategoryController {
   }
 
   @Post('child')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(ROLES_TO_ID_MAPPING.ADMIN)
   async createMarketCategoryChild(@Body() raw: any) {
     const parsed = await createMarketCategoryChildSchema.safeParseAsync(raw);
     if (!parsed.success) {
@@ -59,5 +63,15 @@ export class MarketCategoryController {
     return await this.marketCategoryService.createMarketCategoryChild(
       parsed.data,
     );
+  }
+
+  @Get('')
+  async getMarketCategories() {
+    return await this.marketCategoryService.getMarketCategories();
+  }
+
+  @Get(':id')
+  async getMarketCategoryById(@Param() id: number) {
+    return await this.marketCategoryService.getMarketCategoryById(id);
   }
 }

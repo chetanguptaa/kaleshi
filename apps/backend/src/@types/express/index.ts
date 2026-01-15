@@ -2,7 +2,7 @@ import { type Request } from 'express';
 
 export interface IRequestUser {
   sub: number;
-  roles: string[];
+  roles: number[];
   sid: string;
 }
 

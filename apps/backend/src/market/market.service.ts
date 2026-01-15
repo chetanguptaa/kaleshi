@@ -14,6 +14,8 @@ export class MarketService {
           data: {
             name: body.name,
             marketCategoryId: body.marketCategoryId,
+            startsAt: body.startsAt,
+            endsAt: body.endsAt,
             information: body.information ?? {},
             ruleBook: body.ruleBook ?? null,
             rules: body.rules ?? null,
@@ -38,5 +40,76 @@ export class MarketService {
       }
       throw e;
     }
+  }
+
+  async activateMarket(id: number) {
+    const market = await this.prismaService.market.findFirst({
+      where: {
+        id,
+      },
+    });
+    if (!market) {
+      throw new BadRequestException('Market does not exist');
+    }
+    if (market.isActive) {
+      throw new BadRequestException('Market is already active');
+    }
+    if (market.endsAt < new Date()) {
+      throw new BadRequestException('Market has already ended');
+    }
+    await this.prismaService.market.update({
+      where: {
+        id,
+      },
+      data: {
+        isActive: true,
+      },
+    });
+    return {
+      success: true,
+    };
+  }
+
+  async getMarketById(id: number) {
+    const market = await this.prismaService.market.findFirst({
+      where: {
+        id,
+      },
+    });
+    if (!market || !market.isActive) {
+      throw new BadRequestException('Market does not exist');
+    }
+    return {
+      success: true,
+      market,
+    };
+  }
+
+  async getMarkets(type?: 'inactive') {
+    const query: {
+      isActive?: boolean;
+    } = {};
+    if (type && type === 'inactive') {
+      query.isActive = false;
+    }
+    const markets = await this.prismaService.market.findMany({
+      where: query,
+    });
+    return {
+      success: true,
+      markets,
+    };
+  }
+
+  async getActiveMarkets() {
+    const markets = await this.prismaService.market.findMany({
+      where: {
+        isActive: true,
+      },
+    });
+    return {
+      success: true,
+      markets,
+    };
   }
 }

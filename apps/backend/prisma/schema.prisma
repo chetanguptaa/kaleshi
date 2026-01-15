@@ -79,7 +79,10 @@ model MarketCategory {
 model Market {
   id               Int            @id @default(autoincrement())
   name             String
+  startsAt         DateTime // when the voting can start
+  endsAt           DateTime // when the voting will end
   marketCategoryId Int
+  isActive         Boolean        @default(false)
   information      Json?
   ruleBook         String?
   rules            String?
@@ -89,6 +92,8 @@ model Market {
   orders           Order[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+
+  @@unique([name, startsAt, endsAt])
 }
 
 model Outcome {

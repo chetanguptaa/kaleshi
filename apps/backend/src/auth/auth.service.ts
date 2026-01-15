@@ -6,6 +6,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { add } from 'date-fns';
 import * as jwt from 'jsonwebtoken';
+import { IRequestUser } from 'src/@types/express';
 import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
@@ -88,11 +89,10 @@ export class AuthService {
 
   async verifyToken(token: string) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as unknown as {
-        sub: number;
-        roles: string[];
-        sid: string;
-      };
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET!,
+      ) as unknown as IRequestUser;
       const user = await this.prismaService.user.findUnique({
         where: { id: decoded.sub },
       });

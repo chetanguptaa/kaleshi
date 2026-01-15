@@ -55,4 +55,42 @@ export class MarketCategoryService {
       throw e;
     }
   }
+
+  async getMarketCategories() {
+    const marketCategories = await this.prismaService.marketCategory.findMany({
+      where: {
+        parentId: null,
+      },
+      include: {
+        children: true,
+      },
+    });
+    return {
+      success: true,
+      marketCategories,
+    };
+  }
+
+  async getMarketCategoryById(id: number) {
+    const marketCategory = await this.prismaService.marketCategory.findFirst({
+      where: {
+        id,
+      },
+      include: {
+        children: true,
+        markets: {
+          where: {
+            isActive: true,
+          },
+        },
+      },
+    });
+    if (!marketCategory) {
+      throw new BadRequestException('Market category does not exist');
+    }
+    return {
+      success: true,
+      marketCategory,
+    };
+  }
 }
