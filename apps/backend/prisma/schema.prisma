@@ -83,6 +83,7 @@ model Market {
   endsAt           DateTime // when the voting will end
   marketCategoryId Int
   isActive         Boolean        @default(false)
+  ticker           String
   information      Json?
   ruleBook         String?
   rules            String?

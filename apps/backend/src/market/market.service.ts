@@ -16,6 +16,7 @@ export class MarketService {
             marketCategoryId: body.marketCategoryId,
             startsAt: body.startsAt,
             endsAt: body.endsAt,
+            ticker: body.ticker,
             information: body.information ?? {},
             ruleBook: body.ruleBook ?? null,
             rules: body.rules ?? null,

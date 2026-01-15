@@ -23,6 +23,7 @@ const createMarketSchema = z
     name: z.string().min(3),
     marketCategoryId: z.number().min(1),
     outcomes: z.array(z.string().min(3)).min(2),
+    ticker: z.string().min(3),
     information: z.json().optional(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
