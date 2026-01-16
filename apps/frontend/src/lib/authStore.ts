@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 interface User {
   id: string;
@@ -22,17 +22,17 @@ export const useAuthStore = create<AuthState>()(
     (set, get) => ({
       user: null,
       isAuthenticated: false,
-      
+
       login: async (email: string, password: string) => {
         // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
         // Mock validation
         if (email && password.length >= 6) {
           set({
             user: {
               id: crypto.randomUUID(),
-              name: email.split('@')[0],
+              name: email.split("@")[0],
               email,
               hasTradingAccount: false,
             },
@@ -42,11 +42,11 @@ export const useAuthStore = create<AuthState>()(
         }
         return false;
       },
-      
+
       signup: async (name: string, email: string, password: string) => {
         // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
         // Mock validation
         if (name && email && password.length >= 6) {
           set({
@@ -62,13 +62,13 @@ export const useAuthStore = create<AuthState>()(
         }
         return false;
       },
-      
+
       logout: () => {
         set({ user: null, isAuthenticated: false });
       },
-      
+
       createTradingAccount: async () => {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise((resolve) => setTimeout(resolve, 1000));
         const { user } = get();
         if (user) {
           set({
@@ -80,7 +80,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'kaleshi-auth',
-    }
-  )
+      name: "kaleshi-auth",
+    },
+  ),
 );

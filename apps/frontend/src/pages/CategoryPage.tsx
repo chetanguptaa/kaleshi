@@ -1,15 +1,15 @@
-import { useParams, Link } from 'react-router-dom';
-import { Header } from '@/components/Header';
-import { MarketCard } from '@/components/MarketCard';
-import { getCategory, getSubcategories, getMarkets } from '@/lib/mockData';
-import { ChevronRight, ArrowLeft } from 'lucide-react';
+import { useParams, Link } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { MarketCard } from "@/components/MarketCard";
+import { getCategory, getSubcategories, getMarkets } from "@/lib/mockData";
+import { ChevronRight, ArrowLeft } from "lucide-react";
 
 const CategoryPage = () => {
   const { categoryId, subcategoryId } = useParams();
-  const category = getCategory(categoryId || '');
-  const subcategories = getSubcategories(categoryId || '');
-  const markets = getMarkets(categoryId || '', subcategoryId);
-  
+  const category = getCategory(categoryId || "");
+  const subcategories = getSubcategories(categoryId || "");
+  const markets = getMarkets(categoryId || "", subcategoryId);
+
   if (!category) {
     return (
       <div className="min-h-screen bg-background">
@@ -23,31 +23,36 @@ const CategoryPage = () => {
       </div>
     );
   }
-  
-  const currentSubcategory = subcategories.find(s => s.id === subcategoryId);
-  
+
+  const currentSubcategory = subcategories.find((s) => s.id === subcategoryId);
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       {/* Breadcrumb */}
       <div className="border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
           <nav className="flex items-center gap-2 text-sm">
-            <Link to="/" className="text-muted-foreground hover:text-foreground transition-colors">
+            <Link
+              to="/"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
               Markets
             </Link>
             <ChevronRight className="h-4 w-4 text-muted-foreground" />
             {subcategoryId ? (
               <>
-                <Link 
+                <Link
                   to={`/category/${categoryId}`}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {category.name}
                 </Link>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <span className="text-foreground">{currentSubcategory?.name}</span>
+                <span className="text-foreground">
+                  {currentSubcategory?.name}
+                </span>
               </>
             ) : (
               <span className="text-foreground">{category.name}</span>
@@ -55,7 +60,7 @@ const CategoryPage = () => {
           </nav>
         </div>
       </div>
-      
+
       {/* Header */}
       <section className="container mx-auto px-4 py-8">
         <div className="flex items-center gap-4 mb-2">
@@ -64,13 +69,11 @@ const CategoryPage = () => {
             <h1 className="text-3xl font-bold">
               {currentSubcategory?.name || category.name}
             </h1>
-            <p className="text-muted-foreground">
-              {category.description}
-            </p>
+            <p className="text-muted-foreground">{category.description}</p>
           </div>
         </div>
       </section>
-      
+
       {/* Subcategories (if no subcategory selected) */}
       {!subcategoryId && subcategories.length > 0 && (
         <section className="container mx-auto px-4 pb-8">
@@ -92,11 +95,11 @@ const CategoryPage = () => {
           </div>
         </section>
       )}
-      
+
       {/* Back to category */}
       {subcategoryId && (
         <section className="container mx-auto px-4 pb-4">
-          <Link 
+          <Link
             to={`/category/${categoryId}`}
             className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -105,12 +108,10 @@ const CategoryPage = () => {
           </Link>
         </section>
       )}
-      
+
       {/* Markets */}
       <section className="container mx-auto px-4 pb-12">
-        <h2 className="text-lg font-semibold mb-4">
-          {markets.length} Markets
-        </h2>
+        <h2 className="text-lg font-semibold mb-4">{markets.length} Markets</h2>
         {markets.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {markets.map((market) => (

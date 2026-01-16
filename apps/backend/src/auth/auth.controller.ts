@@ -76,10 +76,7 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(AuthGuard)
-  async logout(
-    @Req() req: AppRequest,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Req() req: AppRequest, @Res() res: Response) {
     const token: string = req.cookies?.auth as string;
     if (token) {
       try {
@@ -92,12 +89,12 @@ export class AuthController {
       }
     }
     res.clearCookie('auth');
-    return { success: true };
+    return res.status(200).json({ success: true });
   }
 
   @Get('me')
   @UseGuards(AuthGuard)
-  me(req: AppRequest) {
-    return { user: req.user };
+  me(@Req() req: AppRequest) {
+    return { success: true, user: req.user };
   }
 }

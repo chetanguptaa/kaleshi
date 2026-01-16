@@ -51,6 +51,8 @@ export class AuthService {
         },
       });
       const token = this.signJwt({
+        name: user.name,
+        email: user.email,
         sub: user.id,
         roles: user.userRoles.map((ur) => ur.roleId),
         accountId: user.account ? user.account.id : null,
@@ -82,6 +84,8 @@ export class AuthService {
         },
       });
       const token = this.signJwt({
+        name: user.name,
+        email: user.email,
         sub: user.id,
         roles: user.userRoles.map((ur) => ur.roleId),
         accountId: user.account ? user.account.id : null,

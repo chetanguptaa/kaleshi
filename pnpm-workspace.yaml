@@ -1,3 +1,13 @@
 packages:
-  - "apps/*"
-  - "packages/*"
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - '@nestjs/core'
+  - '@prisma/engines'
+  - '@swc/core'
+  - bcrypt
+  - better-sqlite3
+  - esbuild
+  - prisma
+  - unrs-resolver
