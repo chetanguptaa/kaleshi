@@ -29,7 +29,11 @@ impl MatchingEngine {
             Self::emit_filled(&fill)
         }
         if let Some(resting) = remainder {
-            MatchingEngine::emit_partial(&resting.order_id, resting.qty_remaining);
+            MatchingEngine::emit_partial(
+                &resting.order_id,
+                &resting.account_id,
+                resting.qty_remaining,
+            );
             let book = self.get_or_create_book(&resting.outcome_id);
             book.add_order(resting);
         }
@@ -38,7 +42,7 @@ impl MatchingEngine {
 
     pub fn handle_cancel(&mut self, order_id: &str, account_id: &str) {
         if let Some(outcome_id) = self.find_and_remove(order_id, account_id) {
-            MatchingEngine::emit_cancelled(order_id);
+            MatchingEngine::emit_cancelled(order_id, account_id);
             self.publish_depth(outcome_id);
         }
     }
@@ -123,10 +127,11 @@ impl MatchingEngine {
         });
     }
 
-    fn emit_partial(order_id: &str, remaining: u32) {
+    fn emit_partial(order_id: &str, account_id: &str, remaining: u32) {
         let event = json!({
             "type": "order.partial",
             "order_id": order_id,
+            "account_id": account_id,
             "remaining": remaining,
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
@@ -136,9 +141,10 @@ impl MatchingEngine {
         });
     }
 
-    fn emit_cancelled(order_id: &str) {
+    fn emit_cancelled(order_id: &str, account_id: &str) {
         let event = json!({
             "type": "order.cancelled",
+            "account_id": account_id,
             "order_id": order_id,
             "timestamp": chrono::Utc::now().timestamp_millis()
         });

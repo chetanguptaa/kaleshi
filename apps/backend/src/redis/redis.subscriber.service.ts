@@ -2,6 +2,7 @@ import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { type RedisClientType } from 'redis';
 import { REDIS_SUBSCRIBER, ENGINE_EVENT_CHANNEL } from './redis.constants';
 import { EngineEvent } from './redis.event-types';
+import { WsGateway } from 'src/websocket/ws.gateway';
 
 @Injectable()
 export class RedisSubscriberService implements OnModuleInit {
@@ -10,6 +11,7 @@ export class RedisSubscriberService implements OnModuleInit {
   constructor(
     @Inject(REDIS_SUBSCRIBER)
     private readonly subscriber: RedisClientType,
+    private readonly gateway: WsGateway,
   ) {}
 
   async onModuleInit() {
@@ -29,17 +31,54 @@ export class RedisSubscriberService implements OnModuleInit {
 
   private handleIncoming(event: EngineEvent) {
     try {
-      // TODO:
-      // - route to a FillService
-      // - route to OrderStatusService
-      // - broadcast WebSocket
-
       this.logger.debug(`Received engine event: ${event.type}`);
-      // Example:
-      // if (event.type === 'order.filled') await this.fillService.process(event);
-      // and so on...
+      switch (event.type) {
+        case 'book.depth': {
+          this.gateway.broadcastDepth(event.outcome_id, {
+            bids: event.bids,
+            asks: event.asks,
+            ts: event.timestamp,
+          });
+          break;
+        }
+        case 'order.partial': {
+          this.gateway.broadcastOrderPartial(event.account_id, {
+            remaining: event.remaining,
+            outcomeId: event.outcome_id,
+            ts: event.timestamp,
+          });
+          break;
+        }
+        case 'order.filled': {
+          this.gateway.broadcastFill(
+            event.buyer_account_id,
+            event.seller_account_id,
+            {
+              fillId: event.fill_id,
+              buyOrderId: event.buy_order_id,
+              sellOrderId: event.sell_order_id,
+              buyer: event.buyer_account_id,
+              seller: event.seller_account_id,
+              price: event.price,
+              qty: event.quantity,
+              ts: event.timestamp,
+            },
+          );
+          break;
+        }
+        case 'order.cancelled': {
+          this.gateway.broadcastCancel(event.account_id, {
+            outcomeId: event.outcome_id,
+            ts: event.timestamp,
+          });
+          break;
+        }
+
+        default:
+          this.logger.warn(`Unknown event received: ${JSON.stringify(event)}`);
+      }
     } catch (err) {
-      this.logger.error(`Error handling Redis event`, err);
+      this.logger.error(`Error handling engine event`, err);
     }
   }
 

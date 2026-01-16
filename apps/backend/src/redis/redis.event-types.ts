@@ -15,6 +15,7 @@ export type OrderNewEvent = {
 export type OrderPartialEvent = {
   type: 'order.partial';
   order_id: string;
+  account_id: string;
   remaining: number;
   outcome_id: string;
   timestamp: number;
@@ -34,6 +35,14 @@ export type OrderFilledEvent = {
   timestamp: number;
 };
 
+export type OrderCancelledEvent = {
+  type: 'order.cancelled';
+  order_id: string;
+  account_id: string;
+  outcome_id: string;
+  timestamp: string;
+};
+
 export type BookDepthEvent = {
   type: 'book.depth';
   outcome_id: string;
@@ -42,4 +51,8 @@ export type BookDepthEvent = {
   timestamp: number;
 };
 
-export type EngineEvent = OrderPartialEvent | OrderFilledEvent;
+export type EngineEvent =
+  | OrderPartialEvent
+  | OrderFilledEvent
+  | OrderCancelledEvent
+  | BookDepthEvent;

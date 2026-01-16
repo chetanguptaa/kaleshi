@@ -3,11 +3,11 @@ import { OrderFilledEvent } from "src/types";
 
 export default async function handleOrderFill(event: OrderFilledEvent) {
   const {
-    fillId,
-    buyOrderId,
-    sellOrderId,
-    buyerAccountId,
-    sellerAccountId,
+    fill_id,
+    buy_order_id,
+    sell_order_id,
+    buyer_account_id,
+    seller_account_id,
     price,
     quantity,
     timestamp,
@@ -15,56 +15,56 @@ export default async function handleOrderFill(event: OrderFilledEvent) {
   const totalValue = price * quantity;
   await prisma.$transaction(async (tx) => {
     const existing = await tx.fill.findUnique({
-      where: { id: fillId },
+      where: { id: fill_id },
     });
     if (existing) return;
     const buyer = await tx.account.findUnique({
-      where: { id: buyerAccountId },
+      where: { id: buyer_account_id },
       select: { coins: true },
     });
     if (!buyer) throw new Error("Buyer account not found");
     if (buyer.coins < totalValue) {
       console.error(
-        `FATAL: insufficient balance buyer=${buyerAccountId} has=${buyer.coins} needs=${totalValue}`,
+        `FATAL: insufficient balance buyer=${buyer_account_id} has=${buyer.coins} needs=${totalValue}`,
       );
       throw new Error("Insufficient funds to apply fill");
     }
     await tx.fill.create({
       data: {
-        id: fillId,
+        id: fill_id,
         price,
         quantity,
-        buyerOrderId: buyOrderId,
-        sellerOrderId: sellOrderId,
-        buyerAccountId,
-        sellerAccountId,
+        buyerOrderId: buy_order_id,
+        sellerOrderId: sell_order_id,
+        buyerAccountId: buyer_account_id,
+        sellerAccountId: seller_account_id,
         createdAt: new Date(timestamp),
       },
     });
     await tx.account.update({
-      where: { id: buyerAccountId },
+      where: { id: buyer_account_id },
       data: { coins: { decrement: totalValue } },
     });
     await tx.account.update({
-      where: { id: sellerAccountId },
+      where: { id: seller_account_id },
       data: { coins: { increment: totalValue } },
     });
     await tx.order.updateMany({
-      where: { id: buyOrderId },
+      where: { id: buy_order_id },
       data: { quantity: { decrement: quantity }, status: "PARTIAL" },
     });
     await tx.order.updateMany({
-      where: { id: sellOrderId },
+      where: { id: sell_order_id },
       data: { quantity: { decrement: quantity }, status: "PARTIAL" },
     });
     await tx.order.updateMany({
-      where: { id: buyOrderId, quantity: 0 },
+      where: { id: buy_order_id, quantity: 0 },
       data: { status: "FILLED" },
     });
     await tx.order.updateMany({
-      where: { id: sellOrderId, quantity: 0 },
+      where: { id: sell_order_id, quantity: 0 },
       data: { status: "FILLED" },
     });
   });
-  console.log(`Processed fill: ${fillId} qty=${quantity} @ ${price}`);
+  console.log(`Processed fill: ${fill_id} qty=${quantity} @ ${price}`);
 }

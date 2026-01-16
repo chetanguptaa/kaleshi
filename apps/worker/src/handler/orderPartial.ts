@@ -2,9 +2,9 @@ import { prisma } from "src/client";
 import { OrderPartialEvent } from "src/types";
 
 export default async function handleOrderPartial(event: OrderPartialEvent) {
-  const { orderId, remaining, timestamp } = event;
+  const { order_id, account_id, remaining, timestamp } = event;
   await prisma.order.updateMany({
-    where: { id: orderId },
+    where: { id: order_id, accountId: account_id },
     data: {
       quantity: remaining,
       status: remaining > 0 ? "PARTIAL" : "FILLED",
@@ -12,5 +12,5 @@ export default async function handleOrderPartial(event: OrderPartialEvent) {
     },
   });
 
-  console.log(`Order ${orderId} partial: remaining=${remaining}`);
+  console.log(`Order ${order_id} partial: remaining=${remaining}`);
 }

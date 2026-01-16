@@ -4,10 +4,11 @@ import { createClient } from 'redis';
 import { REDIS_PUBLISHER, REDIS_SUBSCRIBER } from './redis.constants';
 import { RedisPublisherService } from './redis.publisher.service';
 import { RedisSubscriberService } from './redis.subscriber.service';
+import { WsModule } from 'src/websocket/ws.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule],
+  imports: [ConfigModule, WsModule],
   providers: [
     {
       provide: REDIS_PUBLISHER,

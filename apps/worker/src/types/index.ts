@@ -1,26 +1,31 @@
 export type OrderPartialEvent = {
   type: "order.partial";
-  orderId: string;
+  order_id: string;
+  account_id: string;
   remaining: number;
-  timestamp: string;
+  outcome_id: string;
+  timestamp: number;
 };
 
 export type OrderFilledEvent = {
   type: "order.filled";
-  fillId: string;
-  buyOrderId: string;
-  sellOrderId: string;
-  buyerAccountId: string;
-  sellerAccountId: string;
+  fill_id: string;
+  buy_order_id: string;
+  sell_order_id: string;
+  buyer_account_id: string;
+  seller_account_id: string;
+  market_id: number;
+  outcome_id: string;
   price: number;
   quantity: number;
-  timestamp: string;
+  timestamp: number;
 };
 
 export type OrderCancelledEvent = {
   type: "order.cancelled";
-  orderId: string;
-  outcomeId: string;
+  order_id: string;
+  account_id: string;
+  outcome_id: string;
   timestamp: string;
 };
 
