@@ -1,29 +1,27 @@
-import { Header } from '@/components/Header';
-import { CategoryCard } from '@/components/CategoryCard';
-import { MarketCard } from '@/components/MarketCard';
-import { categories, markets } from '@/lib/mockData';
-import { TrendingUp, Zap, Shield, BarChart3 } from 'lucide-react';
+import { Header } from "@/components/Header";
+import { CategoryCard } from "@/components/CategoryCard";
+import { MarketCard } from "@/components/MarketCard";
+import { categories, markets } from "@/lib/mockData";
+import { BarChart3, Shield, TrendingUp, Zap } from "lucide-react";
 
 const Index = () => {
   const trendingMarkets = markets.slice(0, 4);
-  
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
-      
+
       {/* Hero Section */}
       <section className="relative overflow-hidden border-b border-border/50">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-accent/5" />
         <div className="container mx-auto px-4 py-20 relative">
           <div className="max-w-3xl">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
-              Trade on{' '}
-              <span className="gradient-text">Real-World</span>
-              {' '}Events
+              Trade on <span className="gradient-text">Real-World</span> Events
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground mb-8 leading-relaxed">
-              Buy and sell contracts on sports, politics, crypto, and more. 
-              Turn your predictions into profit with Kaleshi's event markets.
+              Buy and sell contracts on sports, politics, crypto, and more. Turn your predictions into profit with
+              Kaleshi's event markets.
             </p>
             <div className="flex flex-wrap gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
@@ -42,7 +40,7 @@ const Index = () => {
           </div>
         </div>
       </section>
-      
+
       {/* Categories */}
       <section className="container mx-auto px-4 py-12">
         <div className="flex items-center justify-between mb-8">
@@ -57,7 +55,7 @@ const Index = () => {
           ))}
         </div>
       </section>
-      
+
       {/* Trending Markets */}
       <section className="container mx-auto px-4 py-12">
         <div className="flex items-center gap-3 mb-8">
@@ -70,7 +68,7 @@ const Index = () => {
           ))}
         </div>
       </section>
-      
+
       {/* Footer */}
       <footer className="border-t border-border/50 py-8 mt-12">
         <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
