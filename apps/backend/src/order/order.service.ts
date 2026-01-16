@@ -50,7 +50,7 @@ export class OrderService {
       qty_remaining: order.quantity,
       qty_original: order.originalQuantity,
     };
-    await this.redisPublisherService.publishOrderCommand(eventData);
+    await this.redisPublisherService.pushOrderCommand(eventData);
     return {
       success: true,
       id: order.id,
@@ -71,9 +71,11 @@ export class OrderService {
       where: { id: orderId },
       data: { status: 'CANCELLED' },
     });
-    await this.redisPublisherService.publishOrderCommand({
-      type: 'order.cancel',
-      orderId,
+    await this.redisPublisherService.pushOrderCommand({
+      type: 'order.cancelled',
+      order_id: orderId,
+      account_id: accountId,
+      outcome_id: order.outcomeId,
       timestamp: new Date().toISOString(),
     });
     return { success: true };

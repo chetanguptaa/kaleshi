@@ -36,5 +36,6 @@ async fn main() {
             write_snapshot(&snapshot_engine).await;
         }
     });
-    let _ = start_redis_listener(engine, redis_url).await;
+    tokio::spawn(start_redis_listener(Arc::clone(&engine), redis_url));
+    futures::future::pending::<()>().await;
 }

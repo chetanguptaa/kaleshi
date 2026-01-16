@@ -1,7 +1,15 @@
+import { URL, fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { devtools } from '@tanstack/devtools-vite'
+import viteReact from '@vitejs/plugin-react'
+import tailwindcss from '@tailwindcss/vite'
 
-// https://vite.dev/config/
+// https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [devtools(), viteReact(), tailwindcss()],
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+    },
+  },
 })
