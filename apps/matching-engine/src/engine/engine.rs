@@ -22,7 +22,6 @@ impl MatchingEngine {
             .or_insert_with(OrderBook::new)
     }
     pub fn handle_new_order(&mut self, order: Order) {
-        let market_id = order.market_id;
         let outcome_id = order.outcome_id.clone();
         let book = self.get_or_create_book(&outcome_id);
         let (fills, remainder) = book.match_order(order);
@@ -34,13 +33,13 @@ impl MatchingEngine {
             let book = self.get_or_create_book(&resting.outcome_id);
             book.add_order(resting);
         }
-        self.publish_depth(outcome_id, &market_id);
+        self.publish_depth(outcome_id);
     }
 
     pub fn handle_cancel(&mut self, order_id: &str, account_id: &str) {
-        if let Some((outcome_id, market_id)) = self.find_and_remove(order_id, account_id) {
-            MatchingEngine::emit_cancelled(order_id, &outcome_id);
-            self.publish_depth(outcome_id, &market_id);
+        if let Some(outcome_id) = self.find_and_remove(order_id, account_id) {
+            MatchingEngine::emit_cancelled(order_id);
+            self.publish_depth(outcome_id);
         }
     }
 
@@ -49,12 +48,12 @@ impl MatchingEngine {
         book.add_order(order);
     }
 
-    fn publish_depth(&self, outcome_id: String, market_id: &i32) {
+    fn publish_depth(&self, outcome_id: String) {
         if let Some(book) = self.books.get(&outcome_id) {
             let (bids, asks) = book.depth_levels(10);
             let event = serde_json::json!({
                 "type": "book.depth",
-                "marketId": market_id,
+                "outcome_id": outcome_id,
                 "bids": bids,
                 "asks": asks,
                 "timestamp": chrono::Utc::now().timestamp_millis()
@@ -65,45 +64,43 @@ impl MatchingEngine {
         }
     }
 
-    fn find_and_remove(&mut self, order_id: &str, account_id: &str) -> Option<(String, i32)> {
+    fn find_and_remove(&mut self, order_id: &str, account_id: &str) -> Option<String> {
         for (outcome_id, book) in self.books.iter_mut() {
-            let mut removed_market = None;
+            // Bids
+            let mut to_remove: Option<u32> = None;
             for (price, queue) in book.bids.iter_mut() {
                 if let Some(pos) = queue
                     .iter()
                     .position(|o| o.order_id == order_id && o.account_id == account_id)
                 {
-                    let market_id = queue[pos].market_id;
                     queue.remove(pos);
                     if queue.is_empty() {
-                        removed_market = Some((*price, market_id));
-                    } else {
-                        return Some((outcome_id.clone(), market_id));
+                        to_remove = Some(*price);
                     }
+                    break;
                 }
             }
-            if let Some((price, market_id)) = removed_market {
+            if let Some(price) = to_remove {
                 book.bids.remove(&price);
-                return Some((outcome_id.clone(), market_id));
+                return Some(outcome_id.clone());
             }
-            let mut removed_market = None;
+            // Asks
+            let mut to_remove: Option<u32> = None;
             for (price, queue) in book.asks.iter_mut() {
                 if let Some(pos) = queue
                     .iter()
                     .position(|o| o.order_id == order_id && o.account_id == account_id)
                 {
-                    let market_id = queue[pos].market_id;
                     queue.remove(pos);
                     if queue.is_empty() {
-                        removed_market = Some((*price, market_id));
-                    } else {
-                        return Some((outcome_id.clone(), market_id));
+                        to_remove = Some(*price);
                     }
+                    break;
                 }
             }
-            if let Some((price, market_id)) = removed_market {
+            if let Some(price) = to_remove {
                 book.asks.remove(&price);
-                return Some((outcome_id.clone(), market_id));
+                return Some(outcome_id.clone());
             }
         }
         None
@@ -112,11 +109,11 @@ impl MatchingEngine {
     fn emit_filled(fill: &FillEvent) {
         let event = json!({
             "type": "order.filled",
-            "fillId": fill.fill_id,
-            "buyOrderId": fill.buy_order_id,
-            "sellOrderId": fill.sell_order_id,
-            "buyerAccountId": fill.buyer_account_id,
-            "sellerAccountId": fill.seller_account_id,
+            "fill_id": fill.fill_id,
+            "buy_order_id": fill.buy_order_id,
+            "sell_order_id": fill.sell_order_id,
+            "buyer_account_id": fill.buyer_account_id,
+            "seller_account_id": fill.seller_account_id,
             "price": fill.price,
             "quantity": fill.quantity,
             "timestamp": fill.timestamp
@@ -129,7 +126,7 @@ impl MatchingEngine {
     fn emit_partial(order_id: &str, remaining: u32) {
         let event = json!({
             "type": "order.partial",
-            "orderId": order_id,
+            "order_id": order_id,
             "remaining": remaining,
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
@@ -139,11 +136,10 @@ impl MatchingEngine {
         });
     }
 
-    fn emit_cancelled(order_id: &str, outcome_id: &str) {
+    fn emit_cancelled(order_id: &str) {
         let event = json!({
             "type": "order.cancelled",
-            "orderId": order_id,
-            "outcomeId": outcome_id,
+            "order_id": order_id,
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
         tokio::spawn(async move {

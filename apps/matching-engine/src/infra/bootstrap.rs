@@ -10,7 +10,7 @@ pub async fn load_open_orders(
         sea_orm::DatabaseBackend::Sqlite,
         r#"
             SELECT
-                id, marketId, outcomeId, accountId, side, orderType, price, quantity, status, createdAt
+                id, outcomeId, accountId, side, orderType, price, quantity, status, createdAt
             FROM "Order"
             WHERE status IN ('OPEN', 'PARTIAL')
             ORDER BY createdAt ASC
@@ -20,7 +20,6 @@ pub async fn load_open_orders(
     for row in rows {
         let order = Order {
             order_id: row.try_get("", "orderId")?,
-            market_id: row.try_get("", "marketId")?,
             outcome_id: row.try_get("", "outcomeId")?,
             account_id: row.try_get("", "accountId")?,
             side: match row.try_get::<String>("", "side")?.as_str() {
@@ -34,10 +33,6 @@ pub async fn load_open_orders(
             price: row.try_get::<Option<u32>>("", "price")?.map(|p| p as u32),
             qty_remaining: row.try_get::<u32>("", "quantity")? as u32,
             qty_original: row.try_get::<u32>("", "originalQuantity")? as u32,
-            timestamp: row
-                .try_get::<chrono::NaiveDateTime>("", "createdAt")?
-                .and_utc()
-                .timestamp_millis(),
         };
 
         engine.handle_recover_order(order);

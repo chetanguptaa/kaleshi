@@ -21,7 +21,6 @@ const createOrderSchema = z
   .object({
     accountId: z.uuid(),
     outcomeId: z.uuid(),
-    marketId: z.number(),
     quantity: z.number(),
     price: z.number().optional(),
     side: z.enum([OrderSide.BUY, OrderSide.SELL]),

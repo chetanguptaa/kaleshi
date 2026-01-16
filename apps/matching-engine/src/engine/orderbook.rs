@@ -74,7 +74,6 @@ impl OrderBook {
                         seller_account_id: resting.account_id.clone(),
                         price: best_ask_price,
                         quantity: traded_qty,
-                        market_id: incoming.market_id,
                         outcome_id: incoming.outcome_id.clone(),
                         timestamp: Utc::now().timestamp_millis(),
                     };
@@ -127,7 +126,6 @@ impl OrderBook {
                         seller_account_id: incoming.account_id.clone(),
                         price: best_bid_price,
                         quantity: traded_qty,
-                        market_id: incoming.market_id,
                         outcome_id: incoming.outcome_id.clone(),
                         timestamp: Utc::now().timestamp_millis(),
                     };

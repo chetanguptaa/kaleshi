@@ -30,7 +30,6 @@ export class OrderService {
     const order = await this.prismaService.order.create({
       data: {
         accountId: body.accountId,
-        marketId: body.marketId,
         outcomeId: body.outcomeId,
         side: body.side,
         quantity: body.quantity,
@@ -43,7 +42,6 @@ export class OrderService {
     const eventData: OrderNewEvent = {
       type: 'order.new',
       order_id: order.id,
-      market_id: order.marketId,
       outcome_id: order.outcomeId,
       account_id: accountId,
       side: order.side,
@@ -51,7 +49,6 @@ export class OrderService {
       price: order.price,
       qty_remaining: order.quantity,
       qty_original: order.originalQuantity,
-      timestamp: new Date().toISOString(),
     };
     await this.redisPublisherService.publishOrderCommand(eventData);
     return {

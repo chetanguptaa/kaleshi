@@ -1,9 +1,4 @@
-import {
-  Controller,
-  Req,
-  UnauthorizedException,
-  UseGuards,
-} from '@nestjs/common';
+import { Controller, Req, UseGuards } from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { AccountsService } from './accounts.service';
 import { type AppRequest } from 'src/@types/express';

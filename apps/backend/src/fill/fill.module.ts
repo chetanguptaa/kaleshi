@@ -4,6 +4,6 @@ import { FillController } from './fill.controller';
 
 @Module({
   providers: [FillService],
-  controllers: [FillController]
+  controllers: [FillController],
 })
 export class FillModule {}

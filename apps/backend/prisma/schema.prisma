@@ -109,7 +109,6 @@ model Market {
   marketCategory   MarketCategory @relation(fields: [marketCategoryId], references: [id])
   outcomes         Outcome[]
   comments         Comment[]
-  orders           Order[]
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
@@ -136,13 +135,11 @@ model Order {
   price            Int? // points / cents 0–100 and Pointer: Only required for limit orders
   quantity         Int // remaining open quantity
   originalQuantity Int
-  marketId         Int
   accountId        String
   outcomeId        String
   status           OrderStatus @default(OPEN)
   orderType        OrderType   @default(LIMIT)
   timeInForce      TimeInForce @default(GTC)
-  market           Market      @relation(fields: [marketId], references: [id])
   account          Account     @relation(fields: [accountId], references: [id])
   outcome          Outcome     @relation(fields: [outcomeId], references: [id])
   createdAt        DateTime    @default(now())
