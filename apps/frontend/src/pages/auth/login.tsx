@@ -6,56 +6,31 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { BACKEND_URL } from "@/constants";
 import axios from "axios";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { queryClient } from "@/query/query-client";
 import AuthLayout from "@/layout/authLayout";
 import AuthHeader from "@/components/header/auth-header";
-
-interface LoginPayload {
-  email: string;
-  password: string;
-}
-
-async function loginMutation(payload: LoginPayload) {
-  const res = await axios.post(`${BACKEND_URL}/auth/login`, payload, {
-    withCredentials: true,
-  });
-  return res.data;
-}
+import { useLogin } from "@/schemas/auth/login/hooks";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { mutate, isPending } = useMutation({
-    mutationFn: loginMutation,
-    onSuccess: (data) => {
-      toast.success("Logged in successfully");
-      if (data.success) {
-        navigate("/");
-      }
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-    },
-    onError: (e: any) => {
-      if (e?.response?.data?.message) {
-        toast.error(e?.response?.data?.message);
-        return;
-      }
-      toast.error("Login failed. Please try again.");
-    },
-  });
+  const { mutate, isPending } = useLogin();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-    mutate({ email, password });
+    mutate(
+      { email, password },
+      {
+        onSuccess: (data) => {
+          if (data.success) {
+            toast.success("Logged in successfully");
+            navigate("/");
+            return;
+          }
+          toast.error("Login failed");
+        },
+      },
+    );
   };
 
   return (

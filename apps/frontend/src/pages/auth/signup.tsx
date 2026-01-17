@@ -4,60 +4,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { BACKEND_URL } from "@/constants";
-import axios from "axios";
-import { useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/query/query-client";
 import AuthLayout from "@/layout/authLayout";
 import AuthHeader from "@/components/header/auth-header";
-
-interface SignupPayload {
-  name: string;
-  email: string;
-  password: string;
-}
-
-async function signupMutation(payload: SignupPayload) {
-  const res = await axios.post(`${BACKEND_URL}/auth/signup`, payload, {
-    withCredentials: true,
-  });
-  return res.data;
-}
+import { useSignup } from "@/schemas/auth/signup/hooks";
 
 const SignupPage = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { mutate, isPending } = useMutation({
-    mutationFn: signupMutation,
-    onSuccess: (data) => {
-      toast.success("Account created successfully");
-      if (data.success) {
-        navigate("/");
-      }
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
-    },
-    onError: (e: any) => {
-      if (e?.response?.data?.message) {
-        toast.error(e?.response?.data?.message);
-        return;
-      }
-      toast.error("Signup failed. Please try again.");
-    },
-  });
+  const { mutate, isPending } = useSignup();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
-    }
-    mutate({ name, email, password });
+    mutate(
+      { email, name, password },
+      {
+        onSuccess: (data) => {
+          if (data.success) {
+            toast.success("Logged in successfully");
+            navigate("/");
+            return;
+          }
+          toast.error("Login failed");
+        },
+      },
+    );
   };
 
   return (

@@ -1,7 +1,8 @@
-import { ZodSchema } from "zod";
-import { AxiosRequestConfig } from "axios";
+import { ZodType } from "zod";
+import axios, { AxiosRequestConfig, AxiosError } from "axios";
 import { apiClient } from "./client";
-import { toast } from "sonner";
+import { ApiError } from "./error";
+import { formatZodError } from "./zod-error";
 
 export async function mutate<TResponse, TRequest>({
   config,
@@ -10,27 +11,37 @@ export async function mutate<TResponse, TRequest>({
   data,
 }: {
   config: AxiosRequestConfig;
-  requestSchema?: ZodSchema<TRequest>;
-  responseSchema: ZodSchema<TResponse>;
+  requestSchema?: ZodType<TRequest>;
+  responseSchema: ZodType<TResponse>;
   data?: TRequest;
 }): Promise<TResponse> {
   if (requestSchema) {
     const parsedRequest = requestSchema.safeParse(data);
     if (!parsedRequest.success) {
-      console.error("Request validation failed", parsedRequest.error);
-      toast("Request validation failed");
-      throw new Error("Invalid request payload");
+      throw new ApiError(formatZodError(parsedRequest.error));
     }
   }
-  const response = await apiClient.request({
-    ...config,
-    data,
-  });
-  const parsedResponse = responseSchema.safeParse(response.data);
-  if (!parsedResponse.success) {
-    console.error("Response validation failed", parsedResponse.error);
-    toast("Response validation failed");
-    throw new Error("Invalid API response");
+  try {
+    const response = await apiClient.request({
+      ...config,
+      data,
+    });
+    const parsedResponse = responseSchema.safeParse(response.data);
+    if (!parsedResponse.success) {
+      throw new ApiError("Invalid API response");
+    }
+    return parsedResponse.data;
+  } catch (err) {
+    if (err instanceof ApiError) {
+      throw err;
+    }
+    if (axios.isAxiosError(err)) {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        "Something went wrong";
+      throw new ApiError(message, err.response?.status);
+    }
+    throw new ApiError("Unexpected error occurred");
   }
-  return parsedResponse.data;
 }
