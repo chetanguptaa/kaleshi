@@ -4,17 +4,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { BACKEND_URL } from "@/constants";
-import axios from "axios";
 import AuthLayout from "@/layout/authLayout";
-import AuthHeader from "@/components/header/auth-header";
+import AuthHeader from "@/pages/auth/components/auth-header";
 import { useLogin } from "@/schemas/auth/login/hooks";
+import { useCurrentUser } from "@/schemas/layout/hooks";
+import Loading from "@/components/loading";
 
 const LoginPage = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { mutate, isPending } = useLogin();
+  const currentUser = useCurrentUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,8 +34,12 @@ const LoginPage = () => {
     );
   };
 
+  if (currentUser.isLoading) {
+    return <Loading />;
+  }
+
   return (
-    <AuthLayout>
+    <AuthLayout currentUser={currentUser.data}>
       <AuthHeader />
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-20">

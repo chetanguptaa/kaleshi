@@ -77,6 +77,44 @@ export class MarketService {
       where: {
         id,
       },
+      select: {
+        id: true,
+        comments: {
+          select: {
+            comment: true,
+            account: {
+              select: {
+                user: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+            createdAt: true,
+            votes: {
+              select: {
+                id: true,
+                vote: true,
+              },
+            },
+            _count: {
+              select: {
+                votes: true,
+              },
+            },
+          },
+        },
+        outcomes: {
+          select: {
+            name: true,
+            ticker: true,
+          },
+        },
+        name: true,
+        isActive: true,
+        information: true,
+      },
     });
     if (!market || (!userRoles.includes(ROLES.ADMIN) && !market.isActive)) {
       throw new BadRequestException('Market does not exist');

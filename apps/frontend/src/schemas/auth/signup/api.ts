@@ -1,7 +1,7 @@
 import { mutate } from "@/api/mutate";
 import {
-  SignupRequestSchema,
-  SignupResponseSchema,
+  signupRequestSchema,
+  signupResponseSchema,
   TSignupRequest,
 } from "./schemas";
 
@@ -12,7 +12,7 @@ export const signup = (data: TSignupRequest) =>
       method: "POST",
       withCredentials: true,
     },
-    requestSchema: SignupRequestSchema,
-    responseSchema: SignupResponseSchema,
+    requestSchema: signupRequestSchema,
+    responseSchema: signupResponseSchema,
     data,
   });

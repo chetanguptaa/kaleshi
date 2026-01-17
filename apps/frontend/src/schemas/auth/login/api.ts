@@ -1,7 +1,7 @@
 import { mutate } from "@/api/mutate";
 import {
-  LoginRequestSchema,
-  LoginResponseSchema,
+  loginRequestSchema,
+  loginResponseSchema,
   TLoginRequest,
 } from "./schemas";
 
@@ -12,7 +12,7 @@ export const login = (data: TLoginRequest) =>
       method: "POST",
       withCredentials: true,
     },
-    requestSchema: LoginRequestSchema,
-    responseSchema: LoginResponseSchema,
+    requestSchema: loginRequestSchema,
+    responseSchema: loginResponseSchema,
     data,
   });

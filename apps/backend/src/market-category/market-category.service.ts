@@ -90,6 +90,49 @@ export class MarketCategoryService {
     if (!marketCategory) {
       throw new BadRequestException('Market category does not exist');
     }
+    return {
+      success: true,
+      marketCategory,
+    };
+  }
+
+  async getMarketCategoryMarketsById(id: number) {
+    const marketCategory = await this.prismaService.marketCategory.findFirst({
+      where: { id },
+      include: {
+        markets: {
+          where: { isActive: true },
+          include: {
+            outcomes: {
+              select: {
+                id: true,
+                name: true,
+                ticker: true,
+              },
+            },
+          },
+        },
+        children: {
+          include: {
+            markets: {
+              where: { isActive: true },
+              include: {
+                outcomes: {
+                  select: {
+                    id: true,
+                    name: true,
+                    ticker: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+    if (!marketCategory) {
+      throw new BadRequestException('Market category does not exist');
+    }
     const parentMarkets = marketCategory.markets;
     const childrenMarkets = marketCategory.children.flatMap(
       (child) => child.markets,

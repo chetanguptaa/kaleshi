@@ -12,6 +12,7 @@ import NotFound from "./pages/not-found/not-found";
 import { queryClient } from "./query/query-client";
 import DashboardPage from "./pages/dashboard/dashboard";
 import { RecoilRoot } from "recoil";
+import CreateTradingAccountPage from "./pages/account/create-account";
 
 const App = () => (
   <RecoilRoot>
@@ -22,6 +23,10 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<DashboardPage />} />
+            <Route
+              path="/trading-account"
+              element={<CreateTradingAccountPage />}
+            />
             <Route path="/category/:categoryId" element={<CategoryPage />} />
             <Route
               path="/category/:categoryId/:subcategoryId"
@@ -30,7 +35,6 @@ const App = () => (
             <Route path="/market/:marketId" element={<MarketPage />} />
             <Route path="/auth/login" element={<LoginPage />} />
             <Route path="/auth/signup" element={<SignupPage />} />
-            <Route path="/trading-account" element={<TradingAccountPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

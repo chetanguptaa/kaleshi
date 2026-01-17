@@ -10,22 +10,22 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { BACKEND_URL } from "@/constants";
-import userAtom from "@/store/atoms/userAtom";
 import axios from "axios";
-import { Menu, Search, User } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useRecoilState, useRecoilValue } from "recoil";
 import Logo from "./logo";
+import { TCurrentUser } from "@/schemas/layout/schema";
 
 const selectedTabs = [];
 
 export default function Header({
   selectedTab,
+  currentUser,
 }: {
   selectedTab: string | null;
+  currentUser: TCurrentUser | null;
 }) {
   const navigate = useNavigate();
-  const [user, setUser] = useRecoilState(userAtom);
   return (
     <header className="border-b bg-white">
       <div className="px-4 md:px-6 py-4  w-[90%] mx-auto">
@@ -60,41 +60,47 @@ export default function Header({
               </div>
             </div>
             <div className="flex items-center gap-3">
-              {user.isLoggedIn ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline">
-                      <Menu />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-56" align="start">
-                    <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                    <DropdownMenuGroup>
-                      <DropdownMenuItem>Profile</DropdownMenuItem>
-                    </DropdownMenuGroup>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={async () => {
-                        const res = await axios.post(
-                          BACKEND_URL + "/auth/logout",
-                          {},
-                          {
-                            withCredentials: true,
-                          },
-                        );
-                        if (res.status === 200) {
-                          setUser({
-                            isLoggedIn: false,
-                            user: null,
-                          });
-                          navigate("/auth/login");
-                        }
-                      }}
+              {currentUser ? (
+                <>
+                  {!currentUser.accountId && (
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate("/trading-account")}
                     >
-                      Log out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                      Create Trading Account
+                    </Button>
+                  )}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">
+                        <Menu />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="start">
+                      <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                      <DropdownMenuGroup>
+                        <DropdownMenuItem>Profile</DropdownMenuItem>
+                      </DropdownMenuGroup>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const res = await axios.post(
+                            BACKEND_URL + "/auth/logout",
+                            {},
+                            {
+                              withCredentials: true,
+                            },
+                          );
+                          if (res.status === 200) {
+                            navigate("/auth/login");
+                          }
+                        }}
+                      >
+                        Log out
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </>
               ) : (
                 <div className="gap-2 flex justify-center items-center">
                   <Button

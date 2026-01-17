@@ -1,9 +1,13 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import Header from "@/components/header/header";
+import { useCurrentUser } from "@/schemas/layout/hooks";
+import Loading from "@/components/loading";
+import RootLayout from "@/layout/rootLayout";
 
 const NotFound = () => {
   const location = useLocation();
+  const currentUser = useCurrentUser();
 
   useEffect(() => {
     console.error(
@@ -12,9 +16,13 @@ const NotFound = () => {
     );
   }, [location.pathname]);
 
+  if (currentUser.isLoading) {
+    return <Loading />;
+  }
+
   return (
-    <div>
-      <Header selectedTab={null} />
+    <RootLayout isPrivate={false} currentUser={currentUser.data}>
+      <Header selectedTab={null} currentUser={currentUser.data.user} />
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="text-center">
           <h1 className="mb-4 text-4xl font-bold">404</h1>
@@ -26,7 +34,7 @@ const NotFound = () => {
           </a>
         </div>
       </div>
-    </div>
+    </RootLayout>
   );
 };
 

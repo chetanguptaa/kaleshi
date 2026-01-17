@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useAuthStore } from "@/lib/authStore";
 import { toast } from "sonner";
 import {
   Wallet,
@@ -14,27 +13,19 @@ import {
 
 const TradingAccountPage = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const { user, isAuthenticated, createTradingAccount } = useAuthStore();
   const navigate = useNavigate();
 
-  if (!isAuthenticated) {
+  if (!false) {
     navigate("/auth/login");
     return null;
   }
 
   const handleCreate = async () => {
     setIsLoading(true);
-    const success = await createTradingAccount();
     setIsLoading(false);
-
-    if (success) {
-      toast.success("Trading account created! You can now place orders.");
-    } else {
-      toast.error("Failed to create trading account");
-    }
   };
 
-  if (user?.hasTradingAccount) {
+  if (true) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 py-20">
@@ -53,7 +44,7 @@ const TradingAccountPage = () => {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Account ID</span>
-                  <span className="font-mono">{user.id.slice(0, 8)}...</span>
+                  <span className="font-mono">...</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status</span>

@@ -8,13 +8,23 @@ use uuid::Uuid;
 pub struct OrderBook {
     pub bids: BTreeMap<u32, VecDeque<Order>>,
     pub asks: BTreeMap<u32, VecDeque<Order>>,
+    pub last_trade_price: Option<u32>,
+    pub ticker: String,
+    pub name: String,
+    pub total_volume: u64,
+    pub total_notional: u64,
 }
 
 impl OrderBook {
-    pub fn new() -> Self {
+    pub fn new(name: &str, ticker: &str) -> Self {
         Self {
             bids: BTreeMap::new(),
             asks: BTreeMap::new(),
+            last_trade_price: None,
+            ticker: ticker.to_string(),
+            name: name.to_string(),
+            total_volume: 0,
+            total_notional: 0,
         }
     }
 
@@ -50,6 +60,7 @@ impl OrderBook {
                         Some(p) => p,
                         None => break,
                     };
+                    self.last_trade_price = Some(best_ask_price);
                     if incoming.order_type == OrderType::LIMIT
                         && incoming.price.unwrap() < best_ask_price
                     {
@@ -58,6 +69,9 @@ impl OrderBook {
                     let ask_queue = self.asks.get_mut(&best_ask_price).unwrap();
                     let resting = ask_queue.front_mut().unwrap();
                     let traded_qty = resting.qty_remaining.min(incoming.qty_remaining);
+                    self.last_trade_price = Some(best_ask_price);
+                    self.total_volume += traded_qty as u64;
+                    self.total_notional += (best_ask_price as u64) * (traded_qty as u64);
                     let fill = FillEvent {
                         fill_id: Uuid::new_v4().to_string(),
                         buy_order_id: if incoming.side == Side::BUY {
@@ -102,6 +116,7 @@ impl OrderBook {
                         Some(p) => p,
                         None => break,
                     };
+                    self.last_trade_price = Some(best_bid_price);
                     if incoming.order_type == OrderType::LIMIT
                         && incoming.price.unwrap() > best_bid_price
                     {
@@ -110,6 +125,9 @@ impl OrderBook {
                     let bid_queue = self.bids.get_mut(&best_bid_price).unwrap();
                     let resting = bid_queue.front_mut().unwrap();
                     let traded_qty = resting.qty_remaining.min(incoming.qty_remaining);
+                    self.last_trade_price = Some(best_bid_price);
+                    self.total_volume += traded_qty as u64;
+                    self.total_notional += (best_bid_price as u64) * (traded_qty as u64);
                     let fill = FillEvent {
                         fill_id: Uuid::new_v4().to_string(),
                         buy_order_id: if incoming.side == Side::BUY {

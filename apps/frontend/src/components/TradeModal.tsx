@@ -3,7 +3,6 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useAuthStore } from "@/lib/authStore";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -22,7 +21,6 @@ export function TradeModal({ outcome, side, onClose }: TradeModalProps) {
   const [orderType, setOrderType] = useState<"market" | "limit">("market");
   const [quantity, setQuantity] = useState("");
   const [limitPrice, setLimitPrice] = useState(outcome.lastPrice.toFixed(2));
-  const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
 
   const estimatedCost =
@@ -31,13 +29,13 @@ export function TradeModal({ outcome, side, onClose }: TradeModalProps) {
       : parseFloat(quantity || "0") * parseFloat(limitPrice || "0");
 
   const handleSubmit = () => {
-    if (!isAuthenticated) {
+    if (!false) {
       toast.error("Please log in to trade");
       navigate("/auth/login");
       return;
     }
 
-    if (!user?.hasTradingAccount) {
+    if (false) {
       toast.error("Please create a trading account first");
       navigate("/trading-account");
       return;

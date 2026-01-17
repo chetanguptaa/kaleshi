@@ -1,17 +1,30 @@
-import { getMarketCategories, getMarketsBySelection } from "./api";
+import {
+  getMarketById,
+  getMarketCategories,
+  getMarketCategoryById,
+  getMarketsBySelection,
+} from "./api";
 import { useApiQuery } from "@/hooks/use-api-query";
 import { TMarketSelection } from "./schema";
 import { queryClient } from "@/query/query-client";
+import { useEffect, useState } from "react";
+import { socketService } from "@/services/socket";
 
 export const useMarketCategories = () => {
   return useApiQuery(["marketCategories"], getMarketCategories);
 };
 
+export const useMarketCategoryById = (id?: number) =>
+  useApiQuery(["marketCategory", id], () => getMarketCategoryById(id!), {
+    enabled: typeof id === "number",
+  });
+
 export const useMarkets = (selection: TMarketSelection) =>
-  useApiQuery(["markets", selection], () => getMarketsBySelection(selection), {
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
+  useApiQuery(["markets", selection], () => getMarketsBySelection(selection));
+
+export const useMarketById = (id?: number) =>
+  useApiQuery(["market", id], () => getMarketById(id!), {
+    enabled: typeof id === "number",
   });
 
 export function useMarketsPrefetch() {
@@ -22,4 +35,24 @@ export function useMarketsPrefetch() {
       staleTime: 5 * 60 * 1000,
     });
   };
+}
+
+export function useMarketSocket(marketId: number) {
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    let isMounted = true;
+    socketService
+      .subscribeToMarket(marketId)
+      .then(() => {
+        if (isMounted) setIsLoading(false);
+      })
+      .catch(() => {
+        if (isMounted) setIsLoading(false);
+      });
+    return () => {
+      isMounted = false;
+      socketService.unsubscribeFromMarket(marketId);
+    };
+  }, [marketId]);
+  return { isSocketLoading: isLoading };
 }

@@ -33,8 +33,8 @@ const createMarketSchema = z
     information: z.json().optional(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
-    startsAt: z.date(),
-    endsAt: z.date(),
+    startsAt: z.coerce.date(),
+    endsAt: z.coerce.date(),
   })
   .refine((data) => new Date(data.startsAt) >= new Date(), {
     message: 'startsAt cannot be in the past',
@@ -61,6 +61,7 @@ export class MarketController {
   async createMarket(@Body() raw: any) {
     const parsed = await createMarketSchema.safeParseAsync(raw);
     if (parsed.error) {
+      console.log('parsed error ', parsed.error);
       throw new BadRequestException('Invalid request body');
     }
     return await this.marketService.createMarket(parsed.data);
@@ -70,7 +71,7 @@ export class MarketController {
   @UseGuards(AuthGuard, RolesGuard)
   @Roles(ROLES.ADMIN)
   async activateMarket(@Param('id') id: number) {
-    return await this.marketService.activateMarket(id);
+    return await this.marketService.activateMarket(+id);
   }
 
   @Get('')
@@ -85,6 +86,6 @@ export class MarketController {
   @Get(':id')
   async getMarketById(@Req() req: AppRequest, @Param('id') id: number) {
     const userRoles = req.user?.roles || [];
-    return await this.marketService.getMarketById(userRoles, id);
+    return await this.marketService.getMarketById(userRoles, +id);
   }
 }

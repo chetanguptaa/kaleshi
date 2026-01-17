@@ -72,7 +72,12 @@ export class MarketCategoryController {
   }
 
   @Get(':id')
-  async getMarketCategoryById(@Param('id') id: string | number) {
+  async getMarketCategoryById(@Param('id') id: number) {
+    return await this.marketCategoryService.getMarketCategoryById(+id);
+  }
+
+  @Get(':id/markets')
+  async getMarketCategoryMarketsById(@Param('id') id: string | number) {
     // TODO: Pending Logic
     if (id === 'trending' || id === 'all' || id === 'new') {
       return {
@@ -80,6 +85,6 @@ export class MarketCategoryController {
         markets: [],
       };
     }
-    return await this.marketCategoryService.getMarketCategoryById(+id);
+    return await this.marketCategoryService.getMarketCategoryMarketsById(+id);
   }
 }

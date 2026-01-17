@@ -8,22 +8,39 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub struct MatchingEngine {
     pub books: HashMap<String, OrderBook>, // Pointer: Key is outcome_id
+    pub market_outcomes: HashMap<u32, Vec<String>>,
 }
 
 impl MatchingEngine {
     pub fn new() -> Self {
         Self {
             books: HashMap::new(),
+            market_outcomes: HashMap::new(),
         }
     }
-    pub fn get_or_create_book(&mut self, outcome_id: &str) -> &mut OrderBook {
-        self.books
+    pub fn get_or_create_book(
+        &mut self,
+        outcome_id: &str,
+        market_id: &u32,
+        ticker: &str,
+        outcome_name: &str,
+    ) -> &mut OrderBook {
+        let orderbook = self
+            .books
             .entry(outcome_id.to_string())
-            .or_insert_with(OrderBook::new)
+            .or_insert_with(|| OrderBook::new(outcome_name, ticker));
+        self.market_outcomes
+            .entry(*market_id)
+            .or_insert_with(Vec::new)
+            .push(outcome_id.to_string());
+        return orderbook;
     }
     pub fn handle_new_order(&mut self, order: Order) {
         let outcome_id = order.outcome_id.clone();
-        let book = self.get_or_create_book(&outcome_id);
+        let market_id = order.market_id.clone();
+        let ticker = order.ticker.clone();
+        let outcome_name = order.outcome_name.clone();
+        let book = self.get_or_create_book(&outcome_id, &market_id, &ticker, &outcome_name);
         let (fills, remainder) = book.match_order(order);
         for fill in fills {
             Self::emit_filled(&fill)
@@ -34,9 +51,15 @@ impl MatchingEngine {
                 &resting.account_id,
                 resting.qty_remaining,
             );
-            let book = self.get_or_create_book(&resting.outcome_id);
+            let book = self.get_or_create_book(
+                &resting.outcome_id,
+                &resting.market_id,
+                &ticker,
+                &outcome_name,
+            );
             book.add_order(resting);
         }
+        self.emit_market_data(&market_id);
         self.publish_depth(outcome_id);
     }
 
@@ -48,7 +71,12 @@ impl MatchingEngine {
     }
 
     pub fn handle_recover_order(&mut self, order: Order) {
-        let book = self.get_or_create_book(&order.outcome_id);
+        let book = self.get_or_create_book(
+            &order.outcome_id,
+            &order.market_id,
+            &order.ticker,
+            &order.outcome_name,
+        );
         book.add_order(order);
     }
 
@@ -147,6 +175,49 @@ impl MatchingEngine {
             "account_id": account_id,
             "order_id": order_id,
             "timestamp": chrono::Utc::now().timestamp_millis()
+        });
+        tokio::spawn(async move {
+            publish_event(&event).await;
+        });
+    }
+
+    fn emit_market_data(&self, market_id: &u32) {
+        let outcomes = match self.market_outcomes.get(market_id) {
+            Some(v) => v,
+            None => return,
+        };
+        let mut outcome_points = Vec::new();
+        for outcome_id in outcomes {
+            if let Some(book) = self.books.get(outcome_id) {
+                let price =
+                    book.last_trade_price
+                        .or_else(|| match (book.best_bid(), book.best_ask()) {
+                            (Some(bid), Some(ask)) => Some((bid + ask) / 2),
+                            (Some(bid), None) => Some(bid),
+                            (None, Some(ask)) => Some(ask),
+                            _ => None,
+                        });
+
+                if let Some(price) = price {
+                    outcome_points.push(json!({
+                        "outcome_id": outcome_id,
+                        "ticker": book.ticker,
+                        "total_volume": book.total_volume,
+                        "total_notional": book.total_notional,
+                        "price": price,
+                        "outcome_name": book.name,
+                    }));
+                }
+            }
+        }
+        if outcome_points.is_empty() {
+            return;
+        }
+        let event = json!({
+            "type": "market.data",
+            "market_id": market_id,
+            "timestamp": chrono::Utc::now().timestamp_millis(),
+            "outcomes": outcome_points
         });
         tokio::spawn(async move {
             publish_event(&event).await;

@@ -18,6 +18,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private server: Server | null = null;
   private clientsByAccount = new Map<string, Socket>();
   private subscribersByOutcome = new Map<string, Set<Socket>>();
+  private subscribersByMarket = new Map<number, Set<Socket>>();
 
   afterInit(server: Server) {
     this.server = server;
@@ -30,6 +31,9 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
     for (const set of this.subscribersByOutcome.values()) {
+      set.delete(client);
+    }
+    for (const set of this.subscribersByMarket.values()) {
       set.delete(client);
     }
     for (const [accountId, sock] of this.clientsByAccount.entries()) {
@@ -60,10 +64,62 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  @SubscribeMessage('subscribeMarket')
+  handleSubscribeMarket(client: Socket, payload: { marketId: number }) {
+    let set = this.subscribersByMarket.get(payload.marketId);
+    if (!set) {
+      set = new Set();
+      this.subscribersByMarket.set(payload.marketId, set);
+    }
+    set.add(client);
+    this.logger.debug(
+      `Socket ${client.id} subscribed to market=${payload.marketId}`,
+    );
+    return { success: true, marketId: payload.marketId };
+  }
+
+  @SubscribeMessage('unsubscribeOutcome')
+  handleUnSubscribeOutcome(client: Socket, payload: { outcomeId: string }) {
+    const set = this.subscribersByOutcome.get(payload.outcomeId);
+    if (!set) {
+      this.logger.debug(
+        `Socket ${client.id} unsubscribed to outcome=${payload.outcomeId}`,
+      );
+      return;
+    }
+    set.delete(client);
+    this.logger.debug(
+      `Socket ${client.id} unsubscribed to outcome=${payload.outcomeId}`,
+    );
+    return;
+  }
+
+  @SubscribeMessage('unsubscribeMarket')
+  handleUnSubscribeMarket(client: Socket, payload: { marketId: number }) {
+    const set = this.subscribersByMarket.get(payload.marketId);
+    if (!set) {
+      this.logger.debug(
+        `Socket ${client.id} unsubscribed to market=${payload.marketId}`,
+      );
+      return;
+    }
+    set.delete(client);
+    this.logger.debug(
+      `Socket ${client.id} unsubscribed to market=${payload.marketId}`,
+    );
+    return;
+  }
+
   broadcastDepth(outcomeId: string, payload: any) {
     const listeners = this.subscribersByOutcome.get(outcomeId);
     if (!listeners) return;
-    for (const client of listeners) client.emit('depth', payload);
+    for (const client of listeners) client.emit('book.depth', payload);
+  }
+
+  broadcastMarketData(marketId: number, payload: any) {
+    const listeners = this.subscribersByMarket.get(marketId);
+    if (!listeners) return;
+    for (const client of listeners) client.emit('market.data', payload);
   }
 
   // PRIVATE broadcast on orders

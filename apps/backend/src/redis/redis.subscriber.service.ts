@@ -73,7 +73,14 @@ export class RedisSubscriberService implements OnModuleInit {
           });
           break;
         }
-
+        case 'market.data': {
+          this.gateway.broadcastMarketData(event.market_id, {
+            market_id: event.market_id,
+            outcomes: event.outcomes,
+            timestamp: event.timestamp,
+          });
+          break;
+        }
         default:
           this.logger.warn(`Unknown event received: ${JSON.stringify(event)}`);
       }

@@ -51,8 +51,23 @@ export type BookDepthEvent = {
   timestamp: number;
 };
 
+export type MarketDataEvent = {
+  type: 'market.data';
+  market_id: number;
+  timestamp: number;
+  outcomes: {
+    outcome_id: string;
+    outcome_name: string;
+    total_volume: number;
+    total_notional: number;
+    price: number;
+    ticker: string;
+  };
+};
+
 export type EngineEvent =
   | OrderPartialEvent
   | OrderFilledEvent
   | OrderCancelledEvent
-  | BookDepthEvent;
+  | BookDepthEvent
+  | MarketDataEvent;

@@ -15,6 +15,9 @@ pub enum OrderType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
     pub order_id: String,
+    pub market_id: u32,
+    pub ticker: String,
+    pub outcome_name: String,
     pub outcome_id: String,
     pub account_id: String,
     pub side: Side,

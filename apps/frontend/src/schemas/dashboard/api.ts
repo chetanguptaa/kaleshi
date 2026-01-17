@@ -1,18 +1,41 @@
 import { fetcher } from "@/api/fetcher";
 import {
-  MarketCategoriesListResponseSchema,
-  MarketsListResponseSchema,
+  marketByIdResponseSchema,
+  marketCategoriesListResponseSchema,
+  marketCategoryByIdResponseSchema,
+  marketsListResponseSchema,
   TMarketSelection,
 } from "./schema";
 
-export const getMarketCategories = () =>
-  fetcher({
+export const getMarketCategories = () => {
+  return fetcher({
     config: {
       url: "/market-category",
       method: "GET",
     },
-    schema: MarketCategoriesListResponseSchema,
+    schema: marketCategoriesListResponseSchema,
   });
+};
+
+export const getMarketCategoryById = (id: number) => {
+  return fetcher({
+    config: {
+      url: `/market-category/${id}`,
+      method: "GET",
+    },
+    schema: marketCategoryByIdResponseSchema,
+  });
+};
+
+export const getMarketById = (id: number) => {
+  return fetcher({
+    config: {
+      url: `/market/${id}`,
+      method: "GET",
+    },
+    schema: marketByIdResponseSchema,
+  });
+};
 
 export function getMarketsBySelection(selection: TMarketSelection) {
   const id =
@@ -20,10 +43,9 @@ export function getMarketsBySelection(selection: TMarketSelection) {
 
   return fetcher({
     config: {
-      url: `/market-category/${id}`,
+      url: `/market-category/${id}/markets`,
       method: "GET",
     },
-    // schema: MarketListSchema,
-    schema: MarketsListResponseSchema,
+    schema: marketsListResponseSchema,
   });
 }

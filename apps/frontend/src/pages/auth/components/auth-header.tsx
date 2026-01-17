@@ -1,4 +1,4 @@
-import Logo from "./logo";
+import Logo from "../../../components/header/logo";
 
 export default function AuthHeader() {
   return (
@@ -10,7 +10,7 @@ export default function AuthHeader() {
           </div>
         </div>
       </div>
-      <div className="border-t"></div>
+      <div className="border-t" />
     </header>
   );
 }

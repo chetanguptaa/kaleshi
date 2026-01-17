@@ -5,8 +5,10 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import AuthLayout from "@/layout/authLayout";
-import AuthHeader from "@/components/header/auth-header";
+import AuthHeader from "@/pages/auth/components/auth-header";
 import { useSignup } from "@/schemas/auth/signup/hooks";
+import { useCurrentUser } from "@/schemas/layout/hooks";
+import Loading from "@/components/loading";
 
 const SignupPage = () => {
   const [name, setName] = useState("");
@@ -14,6 +16,7 @@ const SignupPage = () => {
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
   const { mutate, isPending } = useSignup();
+  const currentUser = useCurrentUser();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +35,12 @@ const SignupPage = () => {
     );
   };
 
+  if (currentUser.isLoading) {
+    return <Loading />;
+  }
+
   return (
-    <AuthLayout>
+    <AuthLayout currentUser={currentUser.data}>
       <div className="min-h-screen bg-background">
         <AuthHeader />
         <div className="container mx-auto px-4 py-20">
