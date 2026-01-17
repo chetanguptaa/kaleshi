@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { ROLES_TO_ID_MAPPING } from 'src/constants';
+import { ROLES } from 'src/constants';
 import { Roles } from 'src/decorators/roles.decorator';
 import { MarketService } from './market.service';
 import { z } from 'zod';
@@ -57,7 +57,7 @@ export class MarketController {
 
   @Post('')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(ROLES_TO_ID_MAPPING.ADMIN)
+  @Roles(ROLES.ADMIN)
   async createMarket(@Body() raw: any) {
     const parsed = await createMarketSchema.safeParseAsync(raw);
     if (parsed.error) {
@@ -68,26 +68,22 @@ export class MarketController {
 
   @Post(':id/activate')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(ROLES_TO_ID_MAPPING.ADMIN)
-  async activateMarket(@Param() id: number) {
+  @Roles(ROLES.ADMIN)
+  async activateMarket(@Param('id') id: number) {
     return await this.marketService.activateMarket(id);
   }
 
   @Get('')
   async getMarkets(@Req() req: AppRequest, @Query() type?: 'inactive') {
     const userRoles = req.user?.roles || [];
-    if (
-      !userRoles.includes(ROLES_TO_ID_MAPPING.ADMIN) &&
-      type &&
-      type === 'inactive'
-    ) {
+    if (!userRoles.includes(ROLES.ADMIN) && type && type === 'inactive') {
       throw new UnauthorizedException('You are not authorized');
     }
     return await this.marketService.getMarkets(type);
   }
 
   @Get(':id')
-  async getMarketById(@Req() req: AppRequest, @Param() id: number) {
+  async getMarketById(@Req() req: AppRequest, @Param('id') id: number) {
     const userRoles = req.user?.roles || [];
     return await this.marketService.getMarketById(userRoles, id);
   }

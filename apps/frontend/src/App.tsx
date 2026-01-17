@@ -8,7 +8,7 @@ import MarketPage from "./pages/MarketPage";
 import LoginPage from "./pages/auth/login";
 import SignupPage from "./pages/auth/signup";
 import TradingAccountPage from "./pages/TradingAccountPage";
-import NotFound from "./pages/NotFound";
+import NotFound from "./pages/not-found/not-found";
 import { queryClient } from "./query/query-client";
 import DashboardPage from "./pages/dashboard/dashboard";
 import { RecoilRoot } from "recoil";

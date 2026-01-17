@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/lib/authStore";
 import { toast } from "sonner";
@@ -38,8 +37,6 @@ const TradingAccountPage = () => {
   if (user?.hasTradingAccount) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
-
         <div className="container mx-auto px-4 py-20">
           <div className="max-w-md mx-auto text-center">
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-success/20 mb-6">
@@ -80,8 +77,6 @@ const TradingAccountPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-
       <div className="container mx-auto px-4 py-20">
         <div className="max-w-lg mx-auto">
           <div className="text-center mb-8">

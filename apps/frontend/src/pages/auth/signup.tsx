@@ -1,26 +1,20 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { BACKEND_URL } from "@/constants";
 import axios from "axios";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { queryClient } from "@/query/query-client";
-import Loading from "@/components/loading";
+import AuthLayout from "@/layout/authLayout";
+import AuthHeader from "@/components/header/auth-header";
 
 interface SignupPayload {
   name: string;
   email: string;
   password: string;
-}
-
-async function isLoggedIn() {
-  return await axios.get(BACKEND_URL + "/auth/me", {
-    withCredentials: true,
-  });
 }
 
 async function signupMutation(payload: SignupPayload) {
@@ -66,97 +60,88 @@ const SignupPage = () => {
     mutate({ name, email, password });
   };
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["isLoggedIn"],
-    queryFn: isLoggedIn,
-    retry: 0,
-  });
-  if (data?.data) navigate("/");
-
-  if (isLoading) {
-    return <Loading />;
-  }
-
   return (
-    <div className="min-h-screen bg-background">
-      <Header />
-      <div className="container mx-auto px-4 py-20">
-        <div className="max-w-md mx-auto">
-          <div className="text-center mb-8">
-            <h1 className="text-2xl font-bold mb-2">Create your account</h1>
-            <p className="text-muted-foreground">
-              Start trading on real-world events
-            </p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
-            <div>
-              <label className="text-sm text-muted-foreground mb-2 block">
-                Name
-              </label>
-              <Input
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                autoComplete="name"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-muted-foreground mb-2 block">
-                Email
-              </label>
-              <Input
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm text-muted-foreground mb-2 block">
-                Password
-              </label>
-              <Input
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="new-password"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                At least 8 characters
+    <AuthLayout>
+      <div className="min-h-screen bg-background">
+        <AuthHeader />
+        <div className="container mx-auto px-4 py-20">
+          <div className="max-w-md mx-auto">
+            <div className="text-center mb-8">
+              <h1 className="text-2xl font-bold mb-2">Create your account</h1>
+              <p className="text-muted-foreground">
+                Start trading on real-world events
               </p>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full glow-primary"
-              disabled={isPending}
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Create account"
-              )}
-            </Button>
-          </form>
+            <form onSubmit={handleSubmit} className="glass-card p-6 space-y-4">
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Name
+                </label>
+                <Input
+                  type="text"
+                  placeholder="John Doe"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  autoComplete="name"
+                />
+              </div>
 
-          <p className="text-center text-sm text-muted-foreground mt-6">
-            Already have an account?{" "}
-            <Link to="/auth/login" className="text-primary hover:underline">
-              Log in
-            </Link>
-          </p>
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Email
+                </label>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                />
+              </div>
+
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">
+                  Password
+                </label>
+                <Input
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  At least 8 characters
+                </p>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full glow-primary"
+                disabled={isPending}
+              >
+                {isPending ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  "Create account"
+                )}
+              </Button>
+            </form>
+
+            <p className="text-center text-sm text-muted-foreground mt-6">
+              Already have an account?{" "}
+              <Link to="/auth/login" className="text-primary hover:underline">
+                Log in
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
 

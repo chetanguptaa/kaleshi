@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { ROLES_TO_ID_MAPPING } from 'src/constants';
+import { ROLES } from 'src/constants';
 import { Roles } from 'src/decorators/roles.decorator';
 import { MarketCategoryService } from './market-category.service';
 import { z } from 'zod';
@@ -43,10 +43,11 @@ export class MarketCategoryController {
 
   @Post('')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(ROLES_TO_ID_MAPPING.ADMIN)
+  @Roles(ROLES.ADMIN)
   async createMarketCategory(@Body() raw: any) {
     const parsed = await createMarketCategorySchema.safeParseAsync(raw);
     if (!parsed.success) {
+      console.log('hi there what is the error ', JSON.stringify(parsed.error));
       throw new BadRequestException('Invalid request body');
     }
     return await this.marketCategoryService.createMarketCategory(parsed.data);
@@ -54,7 +55,7 @@ export class MarketCategoryController {
 
   @Post('child')
   @UseGuards(AuthGuard, RolesGuard)
-  @Roles(ROLES_TO_ID_MAPPING.ADMIN)
+  @Roles(ROLES.ADMIN)
   async createMarketCategoryChild(@Body() raw: any) {
     const parsed = await createMarketCategoryChildSchema.safeParseAsync(raw);
     if (!parsed.success) {
@@ -71,7 +72,14 @@ export class MarketCategoryController {
   }
 
   @Get(':id')
-  async getMarketCategoryById(@Param() id: number) {
-    return await this.marketCategoryService.getMarketCategoryById(id);
+  async getMarketCategoryById(@Param('id') id: string | number) {
+    // TODO: Pending Logic
+    if (id === 'trending' || id === 'all' || id === 'new') {
+      return {
+        success: true,
+        markets: [],
+      };
+    }
+    return await this.marketCategoryService.getMarketCategoryById(+id);
   }
 }

@@ -40,7 +40,11 @@ export class AuthService {
           },
         },
         include: {
-          userRoles: true,
+          userRoles: {
+            include: {
+              role: true,
+            },
+          },
           account: true,
         },
       });
@@ -54,7 +58,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         sub: user.id,
-        roles: user.userRoles.map((ur) => ur.roleId),
+        roles: user.userRoles.map((ur) => ur.role.name),
         accountId: user.account ? user.account.id : null,
         sid: session.id,
       });
@@ -66,7 +70,11 @@ export class AuthService {
     const user = await this.prismaService.user.findUnique({
       where: { email },
       include: {
-        userRoles: true,
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
         account: true,
       },
     });
@@ -87,7 +95,7 @@ export class AuthService {
         name: user.name,
         email: user.email,
         sub: user.id,
-        roles: user.userRoles.map((ur) => ur.roleId),
+        roles: user.userRoles.map((ur) => ur.role.name),
         accountId: user.account ? user.account.id : null,
         sid: session.id,
       });

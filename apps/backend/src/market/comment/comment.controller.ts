@@ -14,7 +14,7 @@ import { z } from 'zod';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { Roles } from 'src/decorators/roles.decorator';
-import { ROLES_TO_ID_MAPPING } from 'src/constants';
+import { ROLES } from 'src/constants';
 import { AccountGuard } from 'src/auth/account.guard';
 import { CommentVoteType } from 'generated/prisma/enums';
 
@@ -37,10 +37,10 @@ export class CommentController {
 
   @Post('')
   @UseGuards(AuthGuard, RolesGuard, AccountGuard)
-  @Roles(ROLES_TO_ID_MAPPING.COMMON)
+  @Roles(ROLES.COMMON)
   async addComment(
     @Req() req: AppRequest,
-    @Param() marketId: number,
+    @Param('marketId') marketId: number,
     @Body() raw: any,
   ) {
     const accountId = req.user.accountId!;
@@ -57,7 +57,7 @@ export class CommentController {
 
   @Delete(':commentId')
   @UseGuards(AuthGuard, RolesGuard, AccountGuard)
-  @Roles(ROLES_TO_ID_MAPPING.COMMON)
+  @Roles(ROLES.COMMON)
   async deleteComment(
     @Req() req: AppRequest,
     @Param('marketId') marketId: number,
@@ -69,10 +69,10 @@ export class CommentController {
 
   @Post(':id/vote')
   @UseGuards(AuthGuard, RolesGuard, AccountGuard)
-  @Roles(ROLES_TO_ID_MAPPING.COMMON)
+  @Roles(ROLES.COMMON)
   async commentVote(
     @Req() req: AppRequest,
-    @Param() id: string,
+    @Param('id') id: string,
     @Body() raw: any,
   ) {
     const accountId = req.user.accountId!;

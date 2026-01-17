@@ -1,37 +1,52 @@
-import { markets } from "@/lib/mockData";
-import DashboardLayout from "./layout";
-import DashboardHeader from "./header";
+import RootLayout from "@/layout/rootLayout";
+import { BACKEND_URL } from "@/constants";
+import Loading from "@/components/loading";
+import { useMarketCategories, useMarkets } from "@/schemas/dashboard/hooks";
+import { toast } from "sonner";
+import { useState } from "react";
+import { TMarketSelection } from "@/schemas/dashboard/schema";
+import { MarketCategoryTabs } from "./market-category-tabs";
+import Header from "@/components/header/header";
 
 export default function DashboardPage() {
-  const trendingMarkets = markets.slice(0, 4);
+  const [selection, setSelection] = useState<TMarketSelection>({
+    type: "filter",
+    value: "trending",
+  });
+  const marketCategories = useMarketCategories();
+  const markets = useMarkets(selection);
+  if (marketCategories.isError || markets.isError) {
+    toast("Some error occoured, please try again later");
+    return;
+  }
+  if (marketCategories.isLoading || markets.isLoading) {
+    return <Loading />;
+  }
   return (
-    <DashboardLayout>
+    <RootLayout isPrivate={false}>
       <div className="min-h-screen bg-background">
-        <DashboardHeader />
+        <Header selectedTab="Dashboard" />
+        <div className="px-4 md:px-6  w-[90%] mx-auto">
+          <div className="flex gap-6 overflow-x-auto">
+            <MarketCategoryTabs
+              marketCategories={marketCategories.data.marketCategories}
+              selection={selection}
+              onSelect={setSelection}
+            />
+          </div>
+        </div>
         <div className="flex-1 overflow-auto">
           <div className="p-4 md:p-6 max-w-7xl mx-auto">
-            {/* Category Navigation */}
             <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-              <button className="px-3 py-1 rounded-full bg-green-50 text-green-700 text-sm font-medium whitespace-nowrap">
+              <button className="py-1 rounded-full bg-green-50 text-green-700 text-sm font-medium whitespace-nowrap">
                 For you
               </button>
-              {[
-                "Pro Football Playoffs",
-                "Jerome Powell",
-                "College FB Playoffs",
-                "SCOTUS",
-                "Iran",
-                "Donroe Doctrine",
-                "Venezuela",
-                "Mayor Mamdani",
-                "AFCON",
-                "NHL",
-              ].map((cat, i) => (
+              {markets.data.markets.map((mc) => (
                 <button
-                  key={i}
+                  key={mc.id}
                   className="px-3 py-1 text-sm whitespace-nowrap text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {cat}
+                  {mc.name}
                 </button>
               ))}
             </div>
@@ -43,6 +58,6 @@ export default function DashboardPage() {
           </div>
         </footer>
       </div>
-    </DashboardLayout>
+    </RootLayout>
   );
 }

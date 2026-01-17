@@ -1,5 +1,4 @@
 import { useParams, Link } from "react-router-dom";
-import { Header } from "@/components/Header";
 import { MarketCard } from "@/components/MarketCard";
 import { getCategory, getSubcategories, getMarkets } from "@/lib/mockData";
 import { ChevronRight, ArrowLeft } from "lucide-react";
@@ -13,7 +12,6 @@ const CategoryPage = () => {
   if (!category) {
     return (
       <div className="min-h-screen bg-background">
-        <Header />
         <div className="container mx-auto px-4 py-20 text-center">
           <h1 className="text-2xl font-bold mb-4">Category not found</h1>
           <Link to="/" className="text-primary hover:underline">
@@ -28,8 +26,6 @@ const CategoryPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <Header />
-
       {/* Breadcrumb */}
       <div className="border-b border-border/50">
         <div className="container mx-auto px-4 py-4">

@@ -4,6 +4,8 @@ export interface IUserAtom {
   name: string;
   email: string;
   account_id: string | null;
+  roles: string[];
+  isAdmin: boolean;
   sub: number;
 }
 

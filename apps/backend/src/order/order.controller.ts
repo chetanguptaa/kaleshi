@@ -11,7 +11,7 @@ import { OrderService } from './order.service';
 import { z } from 'zod';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { RolesGuard } from 'src/auth/roles.guard';
-import { ROLES_TO_ID_MAPPING } from 'src/constants';
+import { ROLES } from 'src/constants';
 import { Roles } from 'src/decorators/roles.decorator';
 import { type AppRequest } from 'src/@types/express';
 import { AccountGuard } from 'src/auth/account.guard';
@@ -47,7 +47,7 @@ export type TCreateOrderSchema = z.infer<typeof createOrderSchema>;
 
 @Controller('order')
 @UseGuards(AuthGuard, RolesGuard, AccountGuard)
-@Roles(ROLES_TO_ID_MAPPING.COMMON)
+@Roles(ROLES.COMMON)
 export class OrderController {
   constructor(private readonly orderService: OrderService) {}
 
@@ -62,7 +62,7 @@ export class OrderController {
   }
 
   @Post(':orderId/cancel')
-  async cancel(@Req() req: AppRequest, @Param() orderId: string) {
+  async cancel(@Req() req: AppRequest, @Param('orderId') orderId: string) {
     const accountId = req.user.accountId!;
     return await this.orderService.cancelOrder(accountId, orderId);
   }

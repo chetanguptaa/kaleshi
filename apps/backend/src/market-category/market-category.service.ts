@@ -73,14 +73,16 @@ export class MarketCategoryService {
 
   async getMarketCategoryById(id: number) {
     const marketCategory = await this.prismaService.marketCategory.findFirst({
-      where: {
-        id,
-      },
+      where: { id },
       include: {
-        children: true,
         markets: {
-          where: {
-            isActive: true,
+          where: { isActive: true },
+        },
+        children: {
+          include: {
+            markets: {
+              where: { isActive: true },
+            },
           },
         },
       },
@@ -88,9 +90,13 @@ export class MarketCategoryService {
     if (!marketCategory) {
       throw new BadRequestException('Market category does not exist');
     }
+    const parentMarkets = marketCategory.markets;
+    const childrenMarkets = marketCategory.children.flatMap(
+      (child) => child.markets,
+    );
     return {
       success: true,
-      marketCategory,
+      markets: [...parentMarkets, ...childrenMarkets],
     };
   }
 }

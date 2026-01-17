@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TCreateMarketSchema } from './market.controller';
 import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
-import { ROLES_TO_ID_MAPPING } from 'src/constants';
+import { ROLES } from 'src/constants';
 
 @Injectable()
 export class MarketService {
@@ -72,16 +72,13 @@ export class MarketService {
     };
   }
 
-  async getMarketById(userRoles: number[], id: number) {
+  async getMarketById(userRoles: string[], id: number) {
     const market = await this.prismaService.market.findFirst({
       where: {
         id,
       },
     });
-    if (
-      !market ||
-      (!userRoles.includes(ROLES_TO_ID_MAPPING.ADMIN) && !market.isActive)
-    ) {
+    if (!market || (!userRoles.includes(ROLES.ADMIN) && !market.isActive)) {
       throw new BadRequestException('Market does not exist');
     }
     return {
