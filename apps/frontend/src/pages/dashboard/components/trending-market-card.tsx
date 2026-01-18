@@ -90,7 +90,7 @@ const TrendingMarketCard = ({
   currentUser: TCurrentUser | null;
 }) => {
   const trendingMarket = useMarketById(id);
-  const marketSocket = useMarketSocket(id);
+  const marketSocket = useMarketSocket(id, currentUser.accountId);
   const { mutate, isPending } = useCreateOrder();
 
   const [outcomesWS, setOutcomesWS] = useState<IOutcome[] | null>(null);
@@ -348,6 +348,8 @@ const TrendingMarketCard = ({
                     type="number"
                     className="w-full rounded-md border p-2"
                     min={0.01}
+                    value={limitPrice}
+                    onChange={(e) => setLimitPrice(Number(e.target.value))}
                   />
                 </div>
               )}
@@ -359,6 +361,8 @@ const TrendingMarketCard = ({
                   type="number"
                   className="w-full rounded-md border p-2"
                   min={0.01}
+                  value={quantity}
+                  onChange={(e) => setQuantity(Number(e.target.value))}
                 />
               </div>
 
@@ -389,7 +393,11 @@ const TrendingMarketCard = ({
               )}
 
               {isLoggedIn && hasTradingAccount && (
-                <Button className="w-full" onClick={handleSubmit}>
+                <Button
+                  className="w-full"
+                  onClick={handleSubmit}
+                  disabled={isPending}
+                >
                   {orderSide === "BUY" ? "Buy" : "Sell"}
                 </Button>
               )}

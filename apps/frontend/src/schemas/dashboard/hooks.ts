@@ -37,21 +37,23 @@ export function useMarketsPrefetch() {
   };
 }
 
-export function useMarketSocket(marketId: number) {
+export function useMarketSocket(marketId: number, accountId: string | null) {
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
     let isMounted = true;
     socketService
-      .subscribeToMarket(marketId)
+      .subscribeToMarket(marketId, accountId)
       .then(() => {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       })
       .catch(() => {
         if (isMounted) setIsLoading(false);
       });
     return () => {
       isMounted = false;
-      socketService.unsubscribeFromMarket(marketId);
+      socketService.unsubscribeFromMarket(marketId, accountId);
     };
   }, [marketId]);
   return { isSocketLoading: isLoading };

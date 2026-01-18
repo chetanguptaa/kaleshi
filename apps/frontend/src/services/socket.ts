@@ -40,7 +40,7 @@ class SocketService {
     }
   }
 
-  subscribeToMarket(marketId: number): Promise<void> {
+  subscribeToMarket(marketId: number, accountId: string | null): Promise<void> {
     this.connect();
     if (this.subscribedMarkets.has(marketId)) {
       return Promise.resolve();
@@ -55,18 +55,24 @@ class SocketService {
             return;
           }
           this.subscribedMarkets.add(marketId);
+          if (accountId) {
+            this.socket.emit("registerAccount", { accountId });
+          }
           resolve();
         },
       );
     });
   }
 
-  unsubscribeFromMarket(marketId: MarketId) {
+  unsubscribeFromMarket(marketId: MarketId, accountId: string | null) {
     if (!this.subscribedMarkets.has(marketId)) {
       return;
     }
     this.subscribedMarkets.delete(marketId);
     this.socket.emit("unsubscribeMarket", { marketId });
+    if (accountId) {
+      this.socket.emit("unregisterAccount", { accountId });
+    }
   }
 
   on<T>(event: string, handler: (payload: T) => void) {

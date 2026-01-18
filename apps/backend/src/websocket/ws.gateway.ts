@@ -51,6 +51,14 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     );
   }
 
+  @SubscribeMessage('unregisterAccount')
+  handleUnRegisterAccount(client: Socket, payload: { accountId: string }) {
+    this.clientsByAccount.delete(payload.accountId);
+    this.logger.debug(
+      `Account ${payload.accountId} unbounded to socket ${client.id}`,
+    );
+  }
+
   @SubscribeMessage('subscribeOutcome')
   handleSubscribeOutcome(client: Socket, payload: { outcomeId: string }) {
     let set = this.subscribersByOutcome.get(payload.outcomeId);

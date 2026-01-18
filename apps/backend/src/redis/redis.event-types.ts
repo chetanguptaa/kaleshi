@@ -20,6 +20,7 @@ export type OrderPartialEvent = {
   order_id: string;
   account_id: string;
   remaining: number;
+  original_quantity: number;
   outcome_id: string;
   timestamp: number;
 };

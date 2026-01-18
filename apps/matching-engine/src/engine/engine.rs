@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Clone)]
 pub struct MatchingEngine {
     pub books: HashMap<String, OrderBook>, // Pointer: Key is outcome_id
-    pub market_outcomes: HashMap<u32, Vec<String>>,
+    pub market_outcomes: HashMap<u32, Vec<String>>, // market -> outcomes mapping
 }
 
 impl MatchingEngine {
@@ -18,6 +18,7 @@ impl MatchingEngine {
             market_outcomes: HashMap::new(),
         }
     }
+
     pub fn get_or_create_book(
         &mut self,
         outcome_id: &str,
@@ -29,12 +30,16 @@ impl MatchingEngine {
             .books
             .entry(outcome_id.to_string())
             .or_insert_with(|| OrderBook::new(outcome_name, ticker));
-        self.market_outcomes
+        let outcomes = self
+            .market_outcomes
             .entry(*market_id)
-            .or_insert_with(Vec::new)
-            .push(outcome_id.to_string());
-        return orderbook;
+            .or_insert_with(Vec::new);
+        if !outcomes.iter().any(|id| id == outcome_id) {
+            outcomes.push(outcome_id.to_string());
+        }
+        orderbook
     }
+
     pub fn handle_new_order(&mut self, order: Order) {
         let outcome_id = order.outcome_id.clone();
         let market_id = order.market_id.clone();
@@ -42,6 +47,8 @@ impl MatchingEngine {
         let outcome_name = order.outcome_name.clone();
         let book = self.get_or_create_book(&outcome_id, &market_id, &ticker, &outcome_name);
         let (fills, remainder) = book.match_order(order);
+        dbg!("filles ", &fills);
+        dbg!("remainder ", &remainder);
         for fill in fills {
             Self::emit_filled(&fill)
         }
@@ -50,6 +57,7 @@ impl MatchingEngine {
                 &resting.order_id,
                 &resting.account_id,
                 resting.qty_remaining,
+                resting.qty_original,
             );
             let book = self.get_or_create_book(
                 &resting.outcome_id,
@@ -146,7 +154,7 @@ impl MatchingEngine {
             "sell_order_id": fill.sell_order_id,
             "buyer_account_id": fill.buyer_account_id,
             "seller_account_id": fill.seller_account_id,
-            "price": fill.price / 100,
+            "price": fill.price,
             "quantity": fill.quantity,
             "timestamp": fill.timestamp
         });
@@ -155,12 +163,13 @@ impl MatchingEngine {
         });
     }
 
-    fn emit_partial(order_id: &str, account_id: &str, remaining: f32) {
+    fn emit_partial(order_id: &str, account_id: &str, remaining: u32, original_quantity: u32) {
         let event = json!({
             "type": "order.partial",
             "order_id": order_id,
             "account_id": account_id,
             "remaining": remaining,
+            "original_quantity": original_quantity,
             "timestamp": chrono::Utc::now().timestamp_millis()
         });
         let ev = event.clone();
@@ -195,12 +204,12 @@ impl MatchingEngine {
                 outcome_points.push(json!({
                     "outcome_id": outcome_id,
                     "ticker": book.ticker,
-                    "total_volume": book.total_volume / 100,
-                    "total_notional": book.total_notional / 100,
+                    "total_volume": book.total_volume,
+                    "total_notional": book.total_notional,
                     "prices": book
                         .last_trade_prices
                         .iter()
-                        .map(|p| p / 100)
+                        .map(|p| p)
                         .collect::<Vec<_>>(),
                     "outcome_name": book.name,
                 }));

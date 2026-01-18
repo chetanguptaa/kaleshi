@@ -42,14 +42,17 @@ export class RedisSubscriberService implements OnModuleInit {
           break;
         }
         case 'order.partial': {
+          console.log('order partial event ', JSON.stringify(event));
           this.gateway.broadcastOrderPartial(event.account_id, {
             remaining: event.remaining,
+            originalQuantity: event.original_quantity,
             outcomeId: event.outcome_id,
             ts: event.timestamp,
           });
           break;
         }
         case 'order.filled': {
+          console.log('order partial event ', JSON.stringify(event));
           this.gateway.broadcastFill(
             event.buyer_account_id,
             event.seller_account_id,

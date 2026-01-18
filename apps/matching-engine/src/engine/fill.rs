@@ -8,7 +8,7 @@ pub struct FillEvent {
     pub buyer_account_id: String,
     pub seller_account_id: String,
     pub price: u32,
-    pub quantity: f32,
+    pub quantity: u32,
     pub outcome_id: String,
     pub timestamp: i64,
 }
