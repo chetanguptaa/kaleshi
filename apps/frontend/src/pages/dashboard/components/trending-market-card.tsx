@@ -1,10 +1,28 @@
 import Loading from "@/components/loading";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useSocketEvent } from "@/hooks/use-socket-event";
 import { useMarketById, useMarketSocket } from "@/schemas/dashboard/hooks";
+import { TOutcomeSchema } from "@/schemas/dashboard/schema";
+import { TCurrentUser } from "@/schemas/layout/schema";
+import { useCreateOrder } from "@/schemas/orders/hooks";
+import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
 import { CoinsIcon, MessageCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 interface IComment {
   account: {
@@ -64,13 +82,39 @@ const getMostUpvotedComment = (comments: IComment[]) => {
   return mostUpvotedComment;
 };
 
-const TrendingMarketCard = ({ id }: { id: number }) => {
+const TrendingMarketCard = ({
+  id,
+  currentUser,
+}: {
+  id: number;
+  currentUser: TCurrentUser | null;
+}) => {
   const trendingMarket = useMarketById(id);
   const marketSocket = useMarketSocket(id);
+  const { mutate, isPending } = useCreateOrder();
 
   const [outcomesWS, setOutcomesWS] = useState<IOutcome[] | null>(null);
   const [totalVolume, setTotalVolume] = useState(null);
   const [totalNotional, setTotalNotional] = useState(null);
+  const [selectedOutcome, setSelectedOutcome] = useState<
+    | {
+        outcome: IOutcome;
+        from: "ws";
+      }
+    | {
+        outcome: TOutcomeSchema;
+        from: "api";
+      }
+    | null
+  >(null);
+  const [orderType, setOrderType] = useState<EOrderType>(EOrderType.LIMIT);
+  const [orderSide, setOrderSide] = useState<EOrderSide>(EOrderSide.BUY);
+  const [quantity, setQuantity] = useState<number>(0.1);
+  const [limitPrice, setLimitPrice] = useState<number>(0.1);
+
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const isLoggedIn = Boolean(currentUser);
+  const hasTradingAccount = Boolean(currentUser?.accountId);
 
   useEffect(() => {
     if (!outcomesWS) return;
@@ -101,6 +145,76 @@ const TrendingMarketCard = ({ id }: { id: number }) => {
     trendingMarket.data.market.comments,
   );
 
+  const MAX_OUTCOMES_VISIBLE = 3;
+
+  const visibleOutcomes = outcomesWS
+    ? outcomesWS
+        .map((ow) => {
+          return {
+            from: "ws",
+            outcome: ow,
+          };
+        })
+        .slice(0, MAX_OUTCOMES_VISIBLE)
+    : trendingMarket.data.market.outcomes
+        .map((o) => {
+          return {
+            from: "api",
+            outcome: o,
+          };
+        })
+        .slice(0, MAX_OUTCOMES_VISIBLE);
+
+  const hasMoreOutcomes =
+    (outcomesWS ?? trendingMarket.data.market.outcomes).length >
+    MAX_OUTCOMES_VISIBLE;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOutcome) return;
+    let outcomeId = null;
+    if (selectedOutcome.from === "ws") {
+      outcomeId = selectedOutcome.outcome.outcome_id;
+    }
+    if (selectedOutcome.from === "api") {
+      outcomeId = selectedOutcome.outcome.id;
+    }
+    debugger;
+    if (orderType === EOrderType.MARKET) {
+      mutate(
+        { side: orderSide, orderType: orderType, quantity, outcomeId },
+        {
+          onSuccess: (data) => {
+            if (data.success) {
+              toast.success("Order created successfully");
+              return;
+            }
+            toast.error("Order creation failed");
+          },
+        },
+      );
+    } else if (orderType === EOrderType.LIMIT) {
+      mutate(
+        {
+          side: orderSide,
+          orderType: orderType,
+          quantity,
+          outcomeId,
+          price: limitPrice,
+        },
+        {
+          onSuccess: (data) => {
+            if (data.success) {
+              toast.success("Order created successfully");
+              return;
+            }
+            toast.error("Order creation failed");
+          },
+        },
+      );
+    }
+  };
+
   if (trendingMarket.isSuccess) {
     return (
       <div className="bg-card rounded-lg border border-border">
@@ -113,18 +227,30 @@ const TrendingMarketCard = ({ id }: { id: number }) => {
                 </h2>
               </div>
             </div>
-            <div className="flex gap-3">
-              {outcomesWS
-                ? outcomesWS.map((o) => (
-                    <Button key={o.ticker} variant="outline">
-                      {o.outcome_name}
-                    </Button>
-                  ))
-                : trendingMarket.data.market.outcomes.map((o) => (
-                    <Button key={o.ticker} variant="outline">
-                      {o.name} {0.1}
-                    </Button>
-                  ))}
+            <div className="flex flex-wrap gap-3">
+              {visibleOutcomes.map((o) => (
+                <Button
+                  key={o.outcome.ticker}
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedOutcome({
+                      from: o.from,
+                      outcome: o.outcome,
+                    });
+                    setIsDialogOpen(true);
+                  }}
+                >
+                  {"outcome_name" in o.outcome
+                    ? o.outcome.outcome_name
+                    : o.outcome.name + " 0.1"}
+                </Button>
+              ))}
+
+              {hasMoreOutcomes && (
+                <Button asChild variant="secondary">
+                  <Link to="/abc">Show more outcomes</Link>
+                </Button>
+              )}
             </div>
             <div className="space-y-3">
               {mostUpvotedComment && (
@@ -167,6 +293,110 @@ const TrendingMarketCard = ({ id }: { id: number }) => {
             </div>
           </div>
         </div>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>
+                {selectedOutcome?.from === "ws"
+                  ? selectedOutcome?.outcome?.outcome_name
+                  : selectedOutcome?.outcome?.name}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  className="rounded-3xl"
+                  variant={orderSide === EOrderSide.BUY ? "default" : "outline"}
+                  onClick={() => setOrderSide(EOrderSide.BUY)}
+                >
+                  Buy
+                </Button>
+                <Button
+                  size="sm"
+                  variant={
+                    orderSide === EOrderSide.SELL ? "default" : "outline"
+                  }
+                  className="rounded-3xl"
+                  onClick={() => setOrderSide(EOrderSide.SELL)}
+                >
+                  Sell
+                </Button>
+              </div>
+
+              <Select
+                value={orderType}
+                onValueChange={(v) => setOrderType(v as EOrderType)}
+              >
+                <SelectTrigger className="w-32">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={EOrderType.MARKET}>Market</SelectItem>
+                  <SelectItem value={EOrderType.LIMIT}>Limit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Order Form */}
+            <div className="space-y-4">
+              {orderType === EOrderType.LIMIT && (
+                <div>
+                  <label className="text-sm text-muted-foreground">
+                    Limit price (¢)
+                  </label>
+                  <input
+                    type="number"
+                    className="w-full rounded-md border p-2"
+                    min={0.01}
+                  />
+                </div>
+              )}
+              <div>
+                <label className="text-sm text-muted-foreground">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  className="w-full rounded-md border p-2"
+                  min={0.01}
+                />
+              </div>
+
+              {orderType === EOrderType.MARKET && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground border rounded-md p-2">
+                  <span>Expiration</span>
+                  <span className="font-medium text-foreground">
+                    Good ’til cancelled
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* CTA */}
+            <div className="pt-2">
+              {!isLoggedIn && (
+                <Button className="w-full" asChild>
+                  <Link to="/signup">Sign up to trade</Link>
+                </Button>
+              )}
+
+              {isLoggedIn && !hasTradingAccount && (
+                <Button className="w-full" asChild>
+                  <Link to="/create-trading-account">
+                    Create trading account
+                  </Link>
+                </Button>
+              )}
+
+              {isLoggedIn && hasTradingAccount && (
+                <Button className="w-full" onClick={handleSubmit}>
+                  {orderSide === "BUY" ? "Buy" : "Sell"}
+                </Button>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

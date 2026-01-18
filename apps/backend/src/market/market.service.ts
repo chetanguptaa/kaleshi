@@ -107,6 +107,7 @@ export class MarketService {
         },
         outcomes: {
           select: {
+            id: true,
             name: true,
             ticker: true,
           },

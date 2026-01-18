@@ -74,6 +74,7 @@ export class RedisSubscriberService implements OnModuleInit {
           break;
         }
         case 'market.data': {
+          console.log('event ', JSON.stringify(event, null, 2));
           this.gateway.broadcastMarketData(event.market_id, {
             market_id: event.market_id,
             outcomes: event.outcomes,

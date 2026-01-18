@@ -108,7 +108,12 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex-1 h-[calc(100vh-4rem)] overflow-y-auto w-[90%] p-2 md:p-3 px-4 md:px-6  mx-auto">
-            {trendingMarket && <TrendingMarketCard id={trendingMarket.id} />}
+            {trendingMarket && (
+              <TrendingMarketCard
+                id={trendingMarket.id}
+                currentUser={currentUser?.data?.user || null}
+              />
+            )}
             <section className="mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-24">
                 {markets.data.markets.slice(1).map((market) => (

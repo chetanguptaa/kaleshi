@@ -4,6 +4,9 @@ export type OrderNewEvent = {
   type: 'order.new';
   order_id: string;
   outcome_id: string;
+  ticker: string;
+  market_id: number;
+  outcome_name: string;
   account_id: string;
   side: OrderSide;
   order_type: OrderType;

@@ -19,7 +19,6 @@ import { OrderSide, OrderType } from 'generated/prisma/enums';
 
 const createOrderSchema = z
   .object({
-    accountId: z.uuid(),
     outcomeId: z.uuid(),
     quantity: z.number(),
     price: z.number().optional(),

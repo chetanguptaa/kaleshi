@@ -43,12 +43,7 @@ export const marketByIdSchema = z
   .object({
     id: z.number(),
     name: z.string(),
-    outcomes: z.array(
-      z.object({
-        name: z.string(),
-        ticker: z.string(),
-      }),
-    ),
+    outcomes: z.array(outcomeSchema),
     information: z.json(),
     comments: z.array(
       z.object({
@@ -112,6 +107,7 @@ export type TMarket = z.infer<typeof marketSchema>;
 export type TMarketCategory = z.infer<typeof marketCategorySchema>;
 export type TMarketById = z.infer<typeof marketByIdSchema>;
 export type TMarketByIdResponse = z.infer<typeof marketByIdResponseSchema>;
+export type TOutcomeSchema = z.infer<typeof outcomeSchema>;
 
 export type TMarketSelectionFilter = {
   type: "filter";

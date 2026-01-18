@@ -9,18 +9,17 @@ pub async fn load_open_orders(
     let query = Statement::from_string(
         sea_orm::DatabaseBackend::Sqlite,
         r#"
-            SELECT
-                o.id, o.outcomeId, o.marketId, oc.ticker, oc.name, o.accountId, o.side, o.orderType, o.price, o.quantity, o.status, o.createdAt
-            FROM "Order" o
-            LEFT JOIN "Outcome" oc ON oc.id = o.outcomeId,
-            WHERE status IN ('OPEN', 'PARTIAL')
-            ORDER BY createdAt ASC
+        SELECT o.id, o.outcomeId, o.originalQuantity, oc.marketId , oc.ticker, oc.name, o.accountId, o.side, o.orderType, o.price, o.quantity, o.status, o.createdAt
+        FROM "Order" o
+        LEFT JOIN "Outcome" oc ON oc.id = o.outcomeId
+        WHERE status IN ('OPEN', 'PARTIAL')
+        ORDER BY o.createdAt ASC
         "#,
     );
     let rows: Vec<QueryResult> = db.query_all(query).await.unwrap();
     for row in rows {
         let order = Order {
-            order_id: row.try_get("", "orderId")?,
+            order_id: row.try_get("", "id")?,
             market_id: row.try_get("", "marketId")?,
             ticker: row.try_get("", "ticker")?,
             outcome_name: row.try_get("", "name")?,

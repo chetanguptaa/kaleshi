@@ -29,7 +29,7 @@ export class OrderService {
     }
     const order = await this.prismaService.order.create({
       data: {
-        accountId: body.accountId,
+        accountId: accountId,
         outcomeId: body.outcomeId,
         side: body.side,
         quantity: body.quantity,
@@ -38,11 +38,17 @@ export class OrderService {
         orderType: body.orderType,
         status: 'OPEN',
       },
+      include: {
+        outcome: true,
+      },
     });
     const eventData: OrderNewEvent = {
       type: 'order.new',
       order_id: order.id,
       outcome_id: order.outcomeId,
+      outcome_name: order.outcome.name,
+      ticker: order.outcome.ticker,
+      market_id: order.outcome.marketId,
       account_id: accountId,
       side: order.side,
       order_type: order.orderType,
