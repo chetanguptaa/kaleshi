@@ -146,7 +146,7 @@ impl MatchingEngine {
             "sell_order_id": fill.sell_order_id,
             "buyer_account_id": fill.buyer_account_id,
             "seller_account_id": fill.seller_account_id,
-            "price": fill.price,
+            "price": fill.price / 100,
             "quantity": fill.quantity,
             "timestamp": fill.timestamp
         });
@@ -155,7 +155,7 @@ impl MatchingEngine {
         });
     }
 
-    fn emit_partial(order_id: &str, account_id: &str, remaining: u32) {
+    fn emit_partial(order_id: &str, account_id: &str, remaining: f32) {
         let event = json!({
             "type": "order.partial",
             "order_id": order_id,
@@ -189,25 +189,21 @@ impl MatchingEngine {
         let mut outcome_points = Vec::new();
         for outcome_id in outcomes {
             if let Some(book) = self.books.get(outcome_id) {
-                let price =
-                    book.last_trade_price
-                        .or_else(|| match (book.best_bid(), book.best_ask()) {
-                            (Some(bid), Some(ask)) => Some((bid + ask) / 2),
-                            (Some(bid), None) => Some(bid),
-                            (None, Some(ask)) => Some(ask),
-                            _ => None,
-                        });
-
-                if let Some(price) = price {
-                    outcome_points.push(json!({
-                        "outcome_id": outcome_id,
-                        "ticker": book.ticker,
-                        "total_volume": book.total_volume,
-                        "total_notional": book.total_notional,
-                        "price": price,
-                        "outcome_name": book.name,
-                    }));
+                if book.last_trade_prices.is_empty() {
+                    continue;
                 }
+                outcome_points.push(json!({
+                    "outcome_id": outcome_id,
+                    "ticker": book.ticker,
+                    "total_volume": book.total_volume / 100,
+                    "total_notional": book.total_notional / 100,
+                    "prices": book
+                        .last_trade_prices
+                        .iter()
+                        .map(|p| p / 100)
+                        .collect::<Vec<_>>(),
+                    "outcome_name": book.name,
+                }));
             }
         }
         if outcome_points.is_empty() {

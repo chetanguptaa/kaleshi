@@ -68,7 +68,6 @@ pub async fn process_stream_reply(
             continue;
         };
         if items.len() < 2 {
-            dbg!(items.len());
             continue;
         }
         let RedisValue::Bulk(entries) = &items[1] else {

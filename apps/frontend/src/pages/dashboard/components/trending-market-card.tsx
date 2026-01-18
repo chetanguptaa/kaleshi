@@ -179,7 +179,6 @@ const TrendingMarketCard = ({
     if (selectedOutcome.from === "api") {
       outcomeId = selectedOutcome.outcome.id;
     }
-    debugger;
     if (orderType === EOrderType.MARKET) {
       mutate(
         { side: orderSide, orderType: orderType, quantity, outcomeId },

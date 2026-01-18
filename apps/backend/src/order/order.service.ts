@@ -27,6 +27,7 @@ export class OrderService {
     ) {
       throw new BadRequestException('Not enough balance available');
     }
+    console.log('request body ', JSON.stringify(body, null, 2));
     const order = await this.prismaService.order.create({
       data: {
         accountId: accountId,
@@ -34,7 +35,7 @@ export class OrderService {
         side: body.side,
         quantity: body.quantity,
         originalQuantity: body.quantity,
-        price: body.price,
+        price: body.price ? body.price * 100 : null,
         orderType: body.orderType,
         status: 'OPEN',
       },
@@ -52,10 +53,11 @@ export class OrderService {
       account_id: accountId,
       side: order.side,
       order_type: order.orderType,
-      price: order.price,
+      price: order.price ? order.price * 100 : null,
       qty_remaining: order.quantity,
       qty_original: order.originalQuantity,
     };
+    console.log('event data is this ', JSON.stringify(eventData, null, 2));
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {
       success: true,

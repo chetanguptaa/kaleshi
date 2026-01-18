@@ -34,8 +34,8 @@ pub async fn load_open_orders(
                 _ => OrderType::MARKET,
             },
             price: row.try_get::<Option<u32>>("", "price")?.map(|p| p as u32),
-            qty_remaining: row.try_get::<u32>("", "quantity")? as u32,
-            qty_original: row.try_get::<u32>("", "originalQuantity")? as u32,
+            qty_remaining: row.try_get::<f32>("", "quantity")? as f32,
+            qty_original: row.try_get::<f32>("", "originalQuantity")? as f32,
         };
 
         engine.handle_recover_order(order);

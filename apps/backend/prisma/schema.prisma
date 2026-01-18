@@ -133,8 +133,8 @@ model Order {
   id               String      @id @default(uuid())
   side             OrderSide // BUY or SELL
   price            Int? // points / cents 0–100 and Pointer: Only required for limit orders
-  quantity         Int // remaining open quantity
-  originalQuantity Int
+  quantity         Float // remaining open quantity
+  originalQuantity Float
   accountId        String
   outcomeId        String
   status           OrderStatus @default(OPEN)

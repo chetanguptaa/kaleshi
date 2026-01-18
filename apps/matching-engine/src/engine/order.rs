@@ -84,8 +84,8 @@ pub struct Order {
     pub side: Side,
     pub order_type: OrderType,
     pub price: Option<u32>, // Pointer: None for MARKET
-    pub qty_remaining: u32,
-    pub qty_original: u32,
+    pub qty_remaining: f32,
+    pub qty_original: f32,
 }
 
 impl TryFrom<OrderWire> for Order {
