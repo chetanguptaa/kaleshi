@@ -34,6 +34,10 @@ export default function DashboardPage() {
   const marketCategoryById = useMarketCategoryById(categoryId);
   const prefetch = useMarketsPrefetch();
 
+  const trendingMarket = markets?.data?.markets?.length
+    ? markets.data.markets[0]
+    : null;
+
   if (
     marketCategories.isLoading ||
     markets.isLoading ||
@@ -42,10 +46,6 @@ export default function DashboardPage() {
   ) {
     return <Loading />;
   }
-
-  const trendingMarket = markets.data.markets.length
-    ? markets.data.markets[0]
-    : null;
 
   if (marketCategories.isSuccess) {
     return (

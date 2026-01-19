@@ -71,17 +71,18 @@ model UserRole {
 }
 
 model Account {
-  id           String        @id @default(uuid())
-  coins        Int           @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
-  userId       Int           @unique
-  user         User          @relation(fields: [userId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  orders       Order[]
-  comments     Comment[]
-  commentVotes CommentVote[]
-  buyerFills   Fill[]        @relation("BuyerAccountFills")
-  sellerFills  Fill[]        @relation("SellerAccountFills")
+  id            String        @id @default(uuid())
+  coins         Int           @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
+  reservedCoins Int           @default(0)
+  userId        Int           @unique
+  user          User          @relation(fields: [userId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  orders        Order[]
+  comments      Comment[]
+  commentVotes  CommentVote[]
+  buyerFills    Fill[]        @relation("BuyerAccountFills")
+  sellerFills   Fill[]        @relation("SellerAccountFills")
 }
 
 model MarketCategory {

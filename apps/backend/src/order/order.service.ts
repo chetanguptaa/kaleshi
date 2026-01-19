@@ -27,21 +27,43 @@ export class OrderService {
     ) {
       throw new BadRequestException('Not enough balance available');
     }
-    console.log('request body ', JSON.stringify(body, null, 2));
-    const order = await this.prismaService.order.create({
-      data: {
-        accountId: accountId,
-        outcomeId: body.outcomeId,
-        side: body.side,
-        quantity: body.quantity * 100,
-        originalQuantity: body.quantity * 100,
-        price: body.price ? body.price * 100 : null,
-        orderType: body.orderType,
-        status: 'OPEN',
-      },
-      include: {
-        outcome: true,
-      },
+    const order = await this.prismaService.$transaction(async (tx) => {
+      const account = await tx.account.findUnique({
+        where: { id: accountId },
+      });
+      if (!account) {
+        throw new BadRequestException('Account does not exist');
+      }
+      const orderCost =
+        body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;
+      const available = account.coins - account.reservedCoins;
+      if (orderCost > available) {
+        throw new BadRequestException('Not enough available balance');
+      }
+      await tx.account.update({
+        where: { id: accountId },
+        data: {
+          reservedCoins: {
+            increment: orderCost,
+          },
+        },
+      });
+      const order = await tx.order.create({
+        data: {
+          accountId,
+          outcomeId: body.outcomeId,
+          side: body.side,
+          quantity: body.quantity * 100,
+          originalQuantity: body.quantity * 100,
+          price: body.price ? body.price * 100 : null,
+          orderType: body.orderType,
+          status: 'OPEN',
+        },
+        include: {
+          outcome: true,
+        },
+      });
+      return order;
     });
     const eventData: OrderNewEvent = {
       type: 'order.new',
@@ -57,7 +79,6 @@ export class OrderService {
       qty_remaining: order.quantity,
       qty_original: order.originalQuantity,
     };
-    console.log('event data is this ', JSON.stringify(eventData, null, 2));
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {
       success: true,
