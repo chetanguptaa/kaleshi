@@ -195,6 +195,7 @@ impl MatchingEngine {
             Some(v) => v,
             None => return,
         };
+        let market_probabilities = self.market_probabilities(outcomes);
         let mut outcome_points = Vec::new();
         for outcome_id in outcomes {
             if let Some(book) = self.books.get(outcome_id) {
@@ -222,10 +223,27 @@ impl MatchingEngine {
             "type": "market.data",
             "market_id": market_id,
             "timestamp": chrono::Utc::now().timestamp_millis(),
-            "outcomes": outcome_points
+            "outcomes": outcome_points,
+            "market_probabilities": market_probabilities,
         });
         tokio::spawn(async move {
             publish_event(&event).await;
         });
+    }
+
+    fn market_probabilities(&self, outcomes: &Vec<String>) -> Vec<(String, f64)> {
+        let mut raw_probs = Vec::new();
+        for outcome_id in outcomes {
+            let orderbook = self.books.get(outcome_id);
+            if let Some(book) = orderbook {
+                let price = book.representative_price().unwrap_or(0);
+                raw_probs.push((outcome_id.clone(), price as f64 / 100.0));
+            }
+        }
+        let sum: f64 = raw_probs.iter().map(|(_, p)| p).sum();
+        if sum == 0.0 {
+            return raw_probs.into_iter().map(|(id, _)| (id, 0.0)).collect();
+        }
+        raw_probs.into_iter().map(|(id, p)| (id, p / sum)).collect()
     }
 }

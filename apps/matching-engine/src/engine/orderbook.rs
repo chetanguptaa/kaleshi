@@ -149,4 +149,13 @@ impl OrderBook {
         }
         (bids, asks)
     }
+
+    pub fn representative_price(&self) -> Option<u32> {
+        match (self.best_bid(), self.best_ask()) {
+            (Some(bid), Some(ask)) => Some((bid + ask) / 2),
+            (Some(bid), None) => Some(bid),
+            (None, Some(ask)) => Some(ask),
+            (None, None) => self.last_trade_prices.last().cloned(),
+        }
+    }
 }

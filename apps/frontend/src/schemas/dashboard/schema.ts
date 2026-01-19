@@ -24,6 +24,27 @@ export const outcomeSchema = z
   })
   .loose();
 
+export const commentSchema = z
+  .object({
+    account: z.object({
+      user: z.object({
+        name: z.string(),
+      }),
+    }),
+    comment: z.string(),
+    createdAt: z.string(),
+    _count: z.object({
+      votes: z.number(),
+    }),
+    votes: z.array(
+      z.object({
+        id: z.string(),
+        vote: z.enum(["UP", "DOWN"]),
+      }),
+    ),
+  })
+  .loose();
+
 export const marketSchema = z
   .object({
     id: z.number().int(),
@@ -45,26 +66,7 @@ export const marketByIdSchema = z
     name: z.string(),
     outcomes: z.array(outcomeSchema),
     information: z.json(),
-    comments: z.array(
-      z.object({
-        account: z.object({
-          user: z.object({
-            name: z.string(),
-          }),
-        }),
-        comment: z.string(),
-        createdAt: z.string(),
-        _count: z.object({
-          votes: z.number(),
-        }),
-        votes: z.array(
-          z.object({
-            id: z.string(),
-            vote: z.enum(["UP", "DOWN"]),
-          }),
-        ),
-      }),
-    ),
+    comments: z.array(commentSchema),
     isActive: z.boolean(),
   })
   .loose();
@@ -108,6 +110,7 @@ export type TMarketCategory = z.infer<typeof marketCategorySchema>;
 export type TMarketById = z.infer<typeof marketByIdSchema>;
 export type TMarketByIdResponse = z.infer<typeof marketByIdResponseSchema>;
 export type TOutcomeSchema = z.infer<typeof outcomeSchema>;
+export type TCommentSchema = z.infer<typeof commentSchema>;
 
 export type TMarketSelectionFilter = {
   type: "filter";

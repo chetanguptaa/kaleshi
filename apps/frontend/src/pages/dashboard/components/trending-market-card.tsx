@@ -20,67 +20,11 @@ import { TCurrentUser } from "@/schemas/layout/schema";
 import { useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
 import { CoinsIcon, MessageCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
-
-interface IComment {
-  account: {
-    user: {
-      name: string;
-    };
-  };
-  comment: string;
-  createdAt: string;
-  _count: {
-    votes: number;
-  };
-  votes: {
-    id: string;
-    vote: "UP" | "DOWN";
-  }[];
-}
-
-interface IOutcome {
-  outcome_id: string;
-  outcome_name: string;
-  total_volume: number;
-  total_notional: number;
-  price: number;
-  ticker: string;
-}
-
-export function timeAgo(createdAt: Date | string): string {
-  const createdTime =
-    typeof createdAt === "string" ? new Date(createdAt) : createdAt;
-  const seconds = Math.floor((Date.now() - createdTime.getTime()) / 1000);
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds} sec ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} Min ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours} hours ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days} Day${days > 1 ? "s" : ""} Ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 4) return `${weeks} Week${weeks > 1 ? "s" : ""} Ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months} Month${months > 1 ? "s" : ""} Ago`;
-  const years = Math.floor(days / 365);
-  return `${years} Year${years > 1 ? "s" : ""} Ago`;
-}
-
-const getMostUpvotedComment = (comments: IComment[]) => {
-  if (!comments.length) return null;
-  let mostUpvotedComment: IComment | null = null;
-  for (let i = 0; i < comments.length; i++) {
-    const comment = comments[i];
-    if (comment._count.votes > mostUpvotedComment._count.votes) {
-      mostUpvotedComment = comment;
-    }
-  }
-  return mostUpvotedComment;
-};
+import { MAX_OUTCOMES_VISIBLE } from "../constants";
+import { getMostUpvotedComment, IOutcome, timeAgo } from "../utils";
 
 const TrendingMarketCard = ({
   id,
@@ -92,127 +36,93 @@ const TrendingMarketCard = ({
   const trendingMarket = useMarketById(id);
   const marketSocket = useMarketSocket(id, currentUser.accountId);
   const { mutate, isPending } = useCreateOrder();
-
-  const [outcomesWS, setOutcomesWS] = useState<IOutcome[] | null>(null);
-  const [totalVolume, setTotalVolume] = useState(null);
-  const [totalNotional, setTotalNotional] = useState(null);
-  const [selectedOutcome, setSelectedOutcome] = useState<
-    | {
-        outcome: IOutcome;
-        from: "ws";
-      }
-    | {
-        outcome: TOutcomeSchema;
-        from: "api";
-      }
-    | null
-  >(null);
+  const [selectedOutcome, setSelectedOutcome] = useState<TOutcomeSchema | null>(
+    null,
+  );
+  const [outcomesWS, setOutcomesWS] = useState<IOutcome[]>([]);
+  const [outcomes, setOutcomes] = useState<
+    (TOutcomeSchema & {
+      price: number;
+    })[]
+  >([]);
   const [orderType, setOrderType] = useState<EOrderType>(EOrderType.LIMIT);
   const [orderSide, setOrderSide] = useState<EOrderSide>(EOrderSide.BUY);
   const [quantity, setQuantity] = useState<number>(0.1);
   const [limitPrice, setLimitPrice] = useState<number>(0.1);
-
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const isLoggedIn = Boolean(currentUser);
   const hasTradingAccount = Boolean(currentUser?.accountId);
-
-  useEffect(() => {
-    if (!outcomesWS) return;
-    let tv = 0;
-    let tn = 0;
-    for (let i = 0; i < outcomesWS.length; i++) {
-      tv += outcomesWS[i].total_volume;
-      tn += outcomesWS[i].total_notional;
-    }
-    setTotalNotional(tn);
-    setTotalVolume(tv);
+  const { totalVolume, totalNotional } = useMemo(() => {
+    if (!outcomesWS.length) return { totalVolume: 0, totalNotional: 0 };
+    return outcomesWS.reduce(
+      (acc, o) => {
+        acc.totalVolume += o.total_volume;
+        acc.totalNotional += o.total_notional;
+        return acc;
+      },
+      { totalVolume: 0, totalNotional: 0 },
+    );
   }, [outcomesWS]);
-
   useSocketEvent<{
     market_id: number;
     outcomes: IOutcome[];
     timestamp: number;
-  }>("marketUpdate", (payload) => {
+  }>("market.data", (payload) => {
     if (payload.market_id !== id) return;
-    setOutcomesWS(payload.outcomes);
+    setOutcomesWS(payload?.outcomes);
   });
 
-  if (trendingMarket.isLoading || marketSocket.isSocketLoading) {
-    return <Loading />;
-  }
-
   let mostUpvotedComment = getMostUpvotedComment(
-    trendingMarket.data.market.comments,
+    trendingMarket?.data?.market?.comments || [],
   );
 
-  const MAX_OUTCOMES_VISIBLE = 3;
+  const marketOutcomes = useMemo(
+    () => trendingMarket?.data?.market?.outcomes ?? [],
+    [trendingMarket?.data?.market?.outcomes],
+  );
 
-  const visibleOutcomes = outcomesWS
-    ? outcomesWS
-        .map((ow) => {
-          return {
-            from: "ws",
-            outcome: ow,
-          };
-        })
-        .slice(0, MAX_OUTCOMES_VISIBLE)
-    : trendingMarket.data.market.outcomes
-        .map((o) => {
-          return {
-            from: "api",
-            outcome: o,
-          };
-        })
-        .slice(0, MAX_OUTCOMES_VISIBLE);
+  const hasMoreOutcomes = outcomes.length > MAX_OUTCOMES_VISIBLE;
 
-  const hasMoreOutcomes =
-    (outcomesWS ?? trendingMarket.data.market.outcomes).length >
-    MAX_OUTCOMES_VISIBLE;
+  useEffect(() => {
+    if (!marketOutcomes.length) return;
+    const wsPriceMap = new Map(
+      outcomesWS.map((ws) => [
+        ws.outcome_id,
+        ws.prices[ws.prices.length - 1] / 100,
+      ]),
+    );
+    setOutcomes(
+      marketOutcomes.map((o) => ({
+        ...o,
+        price: wsPriceMap.get(o.id) ?? 0.1,
+      })),
+    );
+  }, [marketOutcomes, outcomesWS]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedOutcome) return;
-    let outcomeId = null;
-    if (selectedOutcome.from === "ws") {
-      outcomeId = selectedOutcome.outcome.outcome_id;
-    }
-    if (selectedOutcome.from === "api") {
-      outcomeId = selectedOutcome.outcome.id;
-    }
-    if (orderType === EOrderType.MARKET) {
-      mutate(
-        { side: orderSide, orderType: orderType, quantity, outcomeId },
-        {
-          onSuccess: (data) => {
-            if (data.success) {
-              toast.success("Order created successfully");
-              return;
-            }
-            toast.error("Order creation failed");
-          },
+    mutate(
+      {
+        side: orderSide,
+        orderType,
+        quantity,
+        outcomeId: selectedOutcome.id,
+        ...(orderType === EOrderType.LIMIT && { price: limitPrice }),
+      },
+      {
+        onSuccess: (data) => {
+          data.success
+            ? toast.success("Order created successfully")
+            : toast.error("Order creation failed");
         },
-      );
-    } else if (orderType === EOrderType.LIMIT) {
-      mutate(
-        {
-          side: orderSide,
-          orderType: orderType,
-          quantity,
-          outcomeId,
-          price: limitPrice,
-        },
-        {
-          onSuccess: (data) => {
-            if (data.success) {
-              toast.success("Order created successfully");
-              return;
-            }
-            toast.error("Order creation failed");
-          },
-        },
-      );
-    }
+      },
+    );
   };
+
+  if (trendingMarket.isLoading || marketSocket.isSocketLoading) {
+    return <Loading />;
+  }
 
   if (trendingMarket.isSuccess) {
     return (
@@ -227,24 +137,18 @@ const TrendingMarketCard = ({
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              {visibleOutcomes.map((o) => (
+              {outcomes.slice(0, MAX_OUTCOMES_VISIBLE).map((o) => (
                 <Button
-                  key={o.outcome.ticker}
+                  key={o.id}
                   variant="outline"
                   onClick={() => {
-                    setSelectedOutcome({
-                      from: o.from,
-                      outcome: o.outcome,
-                    });
+                    setSelectedOutcome(o);
                     setIsDialogOpen(true);
                   }}
                 >
-                  {"outcome_name" in o.outcome
-                    ? o.outcome.outcome_name
-                    : o.outcome.name + " 0.1"}
+                  {o.name} {o.price}
                 </Button>
               ))}
-
               {hasMoreOutcomes && (
                 <Button asChild variant="secondary">
                   <Link to="/abc">Show more outcomes</Link>
@@ -255,19 +159,19 @@ const TrendingMarketCard = ({
               {mostUpvotedComment && (
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-gradient-to-br from-bet-positive to-bet-positive/60 flex items-center justify-center text-bet-positive-foreground text-sm font-semibold flex-shrink-0">
-                    {mostUpvotedComment.account.user.name[0]}
+                    {mostUpvotedComment?.account?.user?.name[0]}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-foreground text-sm">
-                        {mostUpvotedComment.account.user.name}
+                        {mostUpvotedComment?.account?.user?.name}
                       </span>
                       <span className="text-muted-foreground text-xs">
-                        {timeAgo(mostUpvotedComment.createdAt)}
+                        {timeAgo(mostUpvotedComment?.createdAt)}
                       </span>
                     </div>
                     <p className="text-muted-foreground text-sm mt-0.5">
-                      {mostUpvotedComment.comment}
+                      {mostUpvotedComment?.comment}
                     </p>
                   </div>
                 </div>
@@ -295,11 +199,7 @@ const TrendingMarketCard = ({
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>
-                {selectedOutcome?.from === "ws"
-                  ? selectedOutcome?.outcome?.outcome_name
-                  : selectedOutcome?.outcome?.name}
-              </DialogTitle>
+              <DialogTitle>{selectedOutcome?.name}</DialogTitle>
             </DialogHeader>
             <div className="flex items-center justify-between gap-2">
               <div className="flex gap-1">

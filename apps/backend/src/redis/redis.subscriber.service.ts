@@ -82,6 +82,7 @@ export class RedisSubscriberService implements OnModuleInit {
             market_id: event.market_id,
             outcomes: event.outcomes,
             timestamp: event.timestamp,
+            market_probabilities: event.market_probabilities,
           });
           break;
         }

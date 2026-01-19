@@ -67,6 +67,7 @@ export type MarketDataEvent = {
     price: number;
     ticker: string;
   };
+  market_probabilities: [string, number][];
 };
 
 export type EngineEvent =
