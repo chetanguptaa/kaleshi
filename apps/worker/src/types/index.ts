@@ -33,3 +33,13 @@ export type EngineEvent =
   | OrderPartialEvent
   | OrderFilledEvent
   | OrderCancelledEvent;
+
+export type TStreamMessage = {
+  id: string;
+  message: Record<string, string>;
+};
+
+export type TStreamResponse = {
+  name: string;
+  messages: TStreamMessage[];
+}[];

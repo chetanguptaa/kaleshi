@@ -1,6 +1,10 @@
 import { Inject, Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { type RedisClientType } from 'redis';
-import { REDIS_SUBSCRIBER, ENGINE_EVENT_CHANNEL } from './redis.constants';
+import {
+  REDIS_SUBSCRIBER,
+  ENGINE_EVENT_PROCESSED_CHANNEL,
+  ENGINE_EVENT_CHANNEL,
+} from './redis.constants';
 import { EngineEvent } from './redis.event-types';
 import { WsGateway } from 'src/websocket/ws.gateway';
 
@@ -15,6 +19,20 @@ export class RedisSubscriberService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.subscriber.subscribe(
+      ENGINE_EVENT_PROCESSED_CHANNEL,
+      (message: string) => {
+        let event: EngineEvent | null = null;
+        try {
+          event = JSON.parse(message) as EngineEvent;
+        } catch (e) {
+          console.log('parsing error ', e);
+        }
+        if (event) {
+          this.handleIncoming(event);
+        }
+      },
+    );
     await this.subscriber.subscribe(ENGINE_EVENT_CHANNEL, (message: string) => {
       let event: EngineEvent | null = null;
       try {
@@ -26,6 +44,7 @@ export class RedisSubscriberService implements OnModuleInit {
         this.handleIncoming(event);
       }
     });
+    this.logger.log(`Subscribed to ${ENGINE_EVENT_PROCESSED_CHANNEL}`);
     this.logger.log(`Subscribed to ${ENGINE_EVENT_CHANNEL}`);
   }
 
