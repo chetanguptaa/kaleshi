@@ -19,20 +19,20 @@ export class RedisSubscriberService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.subscriber.subscribe(
-      ENGINE_EVENT_PROCESSED_CHANNEL,
-      (message: string) => {
-        let event: EngineEvent | null = null;
-        try {
-          event = JSON.parse(message) as EngineEvent;
-        } catch (e) {
-          console.log('parsing error ', e);
-        }
-        if (event) {
-          this.handleIncoming(event);
-        }
-      },
-    );
+    // await this.subscriber.subscribe(
+    //   ENGINE_EVENT_PROCESSED_CHANNEL,
+    //   (message: string) => {
+    //     let event: EngineEvent | null = null;
+    //     try {
+    //       event = JSON.parse(message) as EngineEvent;
+    //     } catch (e) {
+    //       console.log('parsing error ', e);
+    //     }
+    //     if (event) {
+    //       this.handleIncoming(event);
+    //     }
+    //   },
+    // );
     await this.subscriber.subscribe(ENGINE_EVENT_CHANNEL, (message: string) => {
       let event: EngineEvent | null = null;
       try {
@@ -44,7 +44,7 @@ export class RedisSubscriberService implements OnModuleInit {
         this.handleIncoming(event);
       }
     });
-    this.logger.log(`Subscribed to ${ENGINE_EVENT_PROCESSED_CHANNEL}`);
+    // this.logger.log(`Subscribed to ${ENGINE_EVENT_PROCESSED_CHANNEL}`);
     this.logger.log(`Subscribed to ${ENGINE_EVENT_CHANNEL}`);
   }
 
@@ -53,6 +53,7 @@ export class RedisSubscriberService implements OnModuleInit {
       this.logger.debug(`Received engine event: ${event.type}`);
       switch (event.type) {
         case 'book.depth': {
+          console.log('h itehre');
           this.gateway.broadcastDepth(event.outcome_id, {
             bids: event.bids,
             asks: event.asks,

@@ -12,27 +12,19 @@ export class OrderService {
   ) {}
 
   async placeOrder(accountId: string, body: TCreateOrderSchema) {
-    const account = await this.prismaService.account.findUnique({
-      where: {
-        id: accountId,
-      },
-    });
-    if (!account) {
-      throw new BadRequestException('Account does not exist');
-    }
-    if (
-      body.orderType === 'LIMIT' &&
-      body.price &&
-      account.coins < body.price
-    ) {
-      throw new BadRequestException('Not enough balance available');
-    }
     const order = await this.prismaService.$transaction(async (tx) => {
       const account = await tx.account.findUnique({
         where: { id: accountId },
       });
       if (!account) {
         throw new BadRequestException('Account does not exist');
+      }
+      if (
+        body.orderType === 'LIMIT' &&
+        body.price &&
+        account.coins < body.price
+      ) {
+        throw new BadRequestException('Not enough balance available');
       }
       const orderCost =
         body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;

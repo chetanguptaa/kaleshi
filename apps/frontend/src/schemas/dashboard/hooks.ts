@@ -37,24 +37,80 @@ export function useMarketsPrefetch() {
   };
 }
 
-export function useMarketSocket(marketId: number, accountId: string | null) {
+export function useAccountSocket(accountId: string | null) {
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
-    let isMounted = true;
-    socketService
-      .subscribeToMarket(marketId, accountId)
-      .then(() => {
-        if (isMounted) {
+    let cancelled = false;
+    async function setup() {
+      try {
+        setIsLoading(true);
+        if (accountId) {
+          await socketService.registerAccount(accountId);
+        }
+      } catch (error) {
+      } finally {
+        if (!cancelled) {
           setIsLoading(false);
         }
-      })
-      .catch(() => {
-        if (isMounted) setIsLoading(false);
-      });
+      }
+    }
+    setup();
     return () => {
-      isMounted = false;
-      socketService.unsubscribeFromMarket(marketId, accountId);
+      cancelled = true;
+      if (accountId) {
+        socketService.unregisterAccount(accountId);
+      }
+    };
+  }, [accountId]);
+  return { isAccountSocketLoading: isLoading };
+}
+
+export function useMarketSocket(marketId: number) {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function setup() {
+      try {
+        setIsLoading(true);
+        await socketService.subscribeToMarket(marketId);
+      } catch (error) {
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+    setup();
+    return () => {
+      cancelled = true;
+      socketService.unsubscribeFromMarket(marketId);
     };
   }, [marketId]);
-  return { isSocketLoading: isLoading };
+  return { isMarketSocketLoading: isLoading };
+}
+
+export function useOutcomeSocket(outcomeId?: string) {
+  const [isLoading, setIsLoading] = useState(true);
+  useEffect(() => {
+    if (!outcomeId) return;
+    let cancelled = false;
+    async function setup() {
+      try {
+        setIsLoading(true);
+        await socketService.subscribeToOutcome(outcomeId);
+      } catch (error) {
+      } finally {
+        if (!cancelled) {
+          setIsLoading(false);
+        }
+      }
+    }
+    setup();
+    return () => {
+      cancelled = true;
+      socketService.unsubscribeFromOutcome(outcomeId);
+    };
+  }, [outcomeId]);
+  return { isOutcomeSocketLoading: isLoading };
 }

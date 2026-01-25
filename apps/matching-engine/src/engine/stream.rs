@@ -1,18 +1,21 @@
+use crate::engine::events::EngineEvent;
 use crate::engine::order::OrderWire;
 use crate::engine::{engine::MatchingEngine, order::Order};
-use parking_lot::RawMutex;
-use parking_lot::lock_api::Mutex;
+use crate::infra::ledger::append_events_to_ledger;
+use crate::infra::view_emitter::ViewEmitter;
 use redis::RedisResult;
 use redis::Value as RedisValue;
+use redis::aio::Connection;
 use serde_json::Value as SerdeJsonValue;
-use std::sync::Arc;
+use std::collections::HashSet;
 
 const STREAM_KEY: &str = "orders.commands.stream";
 const GROUP: &str = "engine-group";
 
 pub async fn start_order_stream_loop(
     redis_url: String,
-    engine: Arc<Mutex<RawMutex, MatchingEngine>>,
+    mut engine: MatchingEngine,
+    mut view_emitter: ViewEmitter,
 ) -> RedisResult<()> {
     let client = redis::Client::open(redis_url)?;
     let mut conn = client.get_async_connection().await?;
@@ -25,16 +28,26 @@ pub async fn start_order_stream_loop(
         .query_async(&mut conn)
         .await;
     let consumer_name = std::env::var("ENGINE_ID").unwrap_or_else(|_| "engine-1".to_string());
-    let reclaimed: RedisValue = redis::cmd("XAUTOCLAIM")
-        .arg(STREAM_KEY)
-        .arg(GROUP)
-        .arg(&consumer_name)
-        .arg(0)
-        .arg("0-0")
-        .query_async(&mut conn)
+    {
+        let reclaimed: RedisValue = redis::cmd("XAUTOCLAIM")
+            .arg(STREAM_KEY)
+            .arg(GROUP)
+            .arg(&consumer_name)
+            .arg(0)
+            .arg("0-0")
+            .query_async(&mut conn)
+            .await?;
+        {}
+        process_stream_reply(
+            &mut conn,
+            &mut engine,
+            STREAM_KEY,
+            GROUP,
+            reclaimed,
+            &mut view_emitter,
+        )
         .await?;
-    process_stream_reply(&mut conn, &engine, STREAM_KEY, GROUP, reclaimed).await?;
-    println!("Matching Engine online as {}", consumer_name);
+    }
     loop {
         let reply: RedisValue = redis::cmd("XREADGROUP")
             .arg("GROUP")
@@ -49,16 +62,25 @@ pub async fn start_order_stream_loop(
             .arg(">")
             .query_async(&mut conn)
             .await?;
-        process_stream_reply(&mut conn, &engine, STREAM_KEY, GROUP, reply).await?;
+        process_stream_reply(
+            &mut conn,
+            &mut engine,
+            STREAM_KEY,
+            GROUP,
+            reply,
+            &mut view_emitter,
+        )
+        .await?;
     }
 }
 
 pub async fn process_stream_reply(
     conn: &mut redis::aio::Connection,
-    engine: &Arc<Mutex<RawMutex, MatchingEngine>>,
+    engine: &mut MatchingEngine,
     stream_key: &str,
     group: &str,
     reply: RedisValue,
+    view_emitter: &mut ViewEmitter,
 ) -> RedisResult<()> {
     let RedisValue::Bulk(streams) = reply else {
         return Ok(());
@@ -97,7 +119,7 @@ pub async fn process_stream_reply(
                 }
             }
             let payload = SerdeJsonValue::Object(map);
-            match handle_message(engine, &payload).await {
+            match handle_message(conn, engine, &payload, view_emitter).await {
                 Ok(_) => {
                     let _: RedisResult<()> = redis::cmd("XACK")
                         .arg(stream_key)
@@ -117,19 +139,36 @@ pub async fn process_stream_reply(
 }
 
 async fn handle_message(
-    engine: &Arc<Mutex<RawMutex, MatchingEngine>>,
+    redis_conn: &mut Connection,
+    engine: &mut MatchingEngine,
     payload: &SerdeJsonValue,
+    view_emitter: &mut ViewEmitter,
 ) -> Result<(), anyhow::Error> {
     let msg_type = payload
         .get("type")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow::anyhow!("missing type"))?;
-
     match msg_type {
         "order.new" => {
             let wire = serde_json::from_value::<OrderWire>(payload.clone())?;
             let order = Order::try_from(wire)?;
-            engine.lock().handle_new_order(order);
+            let events = engine.decide_new_order(&order);
+            {
+                append_events_to_ledger(redis_conn, &events).await?;
+            }
+            dbg!(&events);
+            {
+                for event in &events {
+                    engine.apply(event);
+                }
+            }
+            let (touched_outcomes, touched_markets) = collect_touched(&engine, &events);
+            for outcome_id in touched_outcomes {
+                view_emitter.emit_book_depth(engine, &outcome_id).await?;
+            }
+            for market_id in touched_markets {
+                view_emitter.emit_market_data(engine, market_id).await?;
+            }
             Ok(())
         }
         "order.cancelled" => {
@@ -141,9 +180,50 @@ async fn handle_message(
                 .get("account_id")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow::anyhow!("missing account_id"))?;
-            engine.lock().handle_cancel(order_id, account_id);
+            let events = engine.decide_cancel(order_id, account_id)?;
+            {
+                append_events_to_ledger(redis_conn, &events).await?;
+            }
+            {
+                for event in &events {
+                    engine.apply(event);
+                }
+            }
+            let (touched_outcomes, touched_markets) = collect_touched(&engine, &events);
+            for outcome_id in touched_outcomes {
+                view_emitter.emit_book_depth(engine, &outcome_id).await?;
+            }
+            for market_id in touched_markets {
+                view_emitter.emit_market_data(engine, market_id).await?;
+            }
             Ok(())
         }
         _ => Err(anyhow::anyhow!("unknown event type")),
     }
+}
+
+fn collect_touched(
+    engine: &MatchingEngine,
+    events: &[EngineEvent],
+) -> (HashSet<String>, HashSet<u32>) {
+    let mut outcomes = HashSet::new();
+    let mut markets = HashSet::new();
+    for event in events {
+        match event {
+            EngineEvent::OrderAdded { order } => {
+                outcomes.insert(order.outcome_id.clone());
+                markets.insert(order.market_id);
+            }
+            EngineEvent::OrderCancelled { order_id, .. } => {
+                if let Some(outcome_id) = engine.find_outcome(order_id) {
+                    outcomes.insert(outcome_id.clone());
+                }
+            }
+            EngineEvent::OrderFilled { outcome_id, .. } => {
+                outcomes.insert(outcome_id.clone());
+            }
+            _ => {}
+        }
+    }
+    (outcomes, markets)
 }

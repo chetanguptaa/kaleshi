@@ -47,7 +47,6 @@ export class MarketCategoryController {
   async createMarketCategory(@Body() raw: any) {
     const parsed = await createMarketCategorySchema.safeParseAsync(raw);
     if (!parsed.success) {
-      console.log('hi there what is the error ', JSON.stringify(parsed.error));
       throw new BadRequestException('Invalid request body');
     }
     return await this.marketCategoryService.createMarketCategory(parsed.data);

@@ -46,6 +46,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('registerAccount')
   handleRegisterAccount(client: Socket, payload: { accountId: string }) {
     this.clientsByAccount.set(payload.accountId, client);
+    return { success: true, accountId: payload.accountId };
     this.logger.debug(
       `Account ${payload.accountId} bound to socket ${client.id}`,
     );
@@ -120,6 +121,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   broadcastDepth(outcomeId: string, payload: any) {
     const listeners = this.subscribersByOutcome.get(outcomeId);
+    console.log('listeners ', JSON.stringify(listeners, null, 2));
     if (!listeners) return;
     for (const client of listeners) client.emit('book.depth', payload);
   }

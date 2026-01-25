@@ -29,7 +29,7 @@ export class RedisPublisherService {
       if (this.client) {
         await this.client.xAdd(ORDER_COMMANDS_STREAM, '*', fields);
       }
-      this.logger.debug(`Queued order command: ${eventData.type}`);
+      this.logger.debug(`Queued order command: ${JSON.stringify(eventData)}`);
     } catch (err) {
       this.logger.error(`Failed to queue order command`, err);
     }

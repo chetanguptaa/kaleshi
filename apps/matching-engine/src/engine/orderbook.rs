@@ -4,7 +4,7 @@ use chrono::Utc;
 use std::collections::{BTreeMap, VecDeque};
 use uuid::Uuid;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct OrderBook {
     pub bids: BTreeMap<u32, VecDeque<Order>>,
     pub asks: BTreeMap<u32, VecDeque<Order>>,
@@ -51,7 +51,16 @@ impl OrderBook {
         }
     }
 
-    pub fn match_order(&mut self, mut incoming: Order) -> (Vec<FillEvent>, Option<Order>) {
+    /// Matches an incoming order against this orderbook.
+    ///
+    /// IMPORTANT:
+    /// - This method MUTATES the orderbook.
+    /// - It must only be called:
+    ///   - on a cloned book (during `decide_*`)
+    ///   - or from `apply()` via events
+    ///
+    /// It must NEVER publish or emit side effects.
+    pub fn match_order(&mut self, incoming: &mut Order) -> (Vec<FillEvent>, Option<Order>) {
         let mut fills = Vec::new();
         loop {
             let (price, book_side) = match incoming.side {
@@ -157,5 +166,17 @@ impl OrderBook {
             (None, Some(ask)) => Some(ask),
             (None, None) => self.last_trade_prices.last().cloned(),
         }
+    }
+
+    pub fn contains(&self, order_id: &str, account_id: &str) -> bool {
+        self.bids.values().any(|queue| {
+            queue
+                .iter()
+                .any(|o| o.order_id == order_id && o.account_id == account_id)
+        }) || self.asks.values().any(|queue| {
+            queue
+                .iter()
+                .any(|o| o.order_id == order_id && o.account_id == account_id)
+        })
     }
 }

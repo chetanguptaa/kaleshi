@@ -1,10 +1,14 @@
 import { io, Socket } from "socket.io-client";
 
 type MarketId = number;
+type OutcomeId = string;
+type AccountId = string;
 
 class SocketService {
   private socket: Socket;
   private subscribedMarkets = new Set<MarketId>();
+  private subscribedOutcomes = new Set<OutcomeId>();
+  private accounts = new Set<AccountId>();
   private isConnected = false;
 
   constructor() {
@@ -19,8 +23,14 @@ class SocketService {
   private registerCoreListeners() {
     this.socket.on("connect", () => {
       this.isConnected = true;
+      this.accounts.forEach((accountId) => {
+        this.socket.emit("registerAccount", { accountId });
+      });
       this.subscribedMarkets.forEach((marketId) => {
         this.socket.emit("subscribeMarket", { marketId });
+      });
+      this.subscribedOutcomes.forEach((outcomeId) => {
+        this.socket.emit("subscribeOutcome", { outcomeId });
       });
     });
     this.socket.on("disconnect", () => {
@@ -40,7 +50,36 @@ class SocketService {
     }
   }
 
-  subscribeToMarket(marketId: number, accountId: string | null): Promise<void> {
+  registerAccount(accountId: string | null): Promise<void> {
+    if (!accountId) return;
+    this.connect();
+    if (this.accounts.has(accountId)) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+      this.socket.emit(
+        "registerAccount",
+        { accountId },
+        (response: { success: boolean }) => {
+          if (!response?.success) {
+            reject();
+            return;
+          }
+          resolve();
+        },
+      );
+    });
+  }
+
+  unregisterAccount(accountId: string | null): Promise<void> {
+    if (!this.accounts.has(accountId)) {
+      return;
+    }
+    this.accounts.delete(accountId);
+    this.socket.emit("unregisterAccount", { accountId });
+  }
+
+  subscribeToMarket(marketId: number): Promise<void> {
     this.connect();
     if (this.subscribedMarkets.has(marketId)) {
       return Promise.resolve();
@@ -55,24 +94,47 @@ class SocketService {
             return;
           }
           this.subscribedMarkets.add(marketId);
-          if (accountId) {
-            this.socket.emit("registerAccount", { accountId });
-          }
           resolve();
         },
       );
     });
   }
 
-  unsubscribeFromMarket(marketId: MarketId, accountId: string | null) {
+  unsubscribeFromMarket(marketId: MarketId) {
     if (!this.subscribedMarkets.has(marketId)) {
       return;
     }
     this.subscribedMarkets.delete(marketId);
     this.socket.emit("unsubscribeMarket", { marketId });
-    if (accountId) {
-      this.socket.emit("unregisterAccount", { accountId });
+  }
+
+  subscribeToOutcome(outcomeId: string): Promise<void> {
+    this.connect();
+    if (this.subscribedOutcomes.has(outcomeId)) {
+      return Promise.resolve();
     }
+    return new Promise((resolve, reject) => {
+      this.socket.emit(
+        "subscribeOutcome",
+        { outcomeId },
+        (response: { success: boolean }) => {
+          if (!response?.success) {
+            reject();
+            return;
+          }
+          this.subscribedOutcomes.add(outcomeId);
+          resolve();
+        },
+      );
+    });
+  }
+
+  unsubscribeFromOutcome(outcomeId: OutcomeId) {
+    if (!this.subscribedOutcomes.has(outcomeId)) {
+      return;
+    }
+    this.subscribedOutcomes.delete(outcomeId);
+    this.socket.emit("unsubscribeOutcome", { outcomeId });
   }
 
   on<T>(event: string, handler: (payload: T) => void) {

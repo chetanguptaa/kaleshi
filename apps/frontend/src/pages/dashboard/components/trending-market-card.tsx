@@ -14,7 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSocketEvent } from "@/hooks/use-socket-event";
-import { useMarketById, useMarketSocket } from "@/schemas/dashboard/hooks";
+import {
+  useAccountSocket,
+  useMarketById,
+  useMarketSocket,
+  useOutcomeSocket,
+} from "@/schemas/dashboard/hooks";
 import { TOutcomeSchema } from "@/schemas/dashboard/schema";
 import { TCurrentUser } from "@/schemas/layout/schema";
 import { useCreateOrder } from "@/schemas/orders/hooks";
@@ -34,7 +39,8 @@ const TrendingMarketCard = ({
   currentUser: TCurrentUser | null;
 }) => {
   const trendingMarket = useMarketById(id);
-  const marketSocket = useMarketSocket(id, currentUser.accountId);
+  const accountSocket = useAccountSocket(currentUser.accountId);
+  const marketSocket = useMarketSocket(id);
   const { mutate, isPending } = useCreateOrder();
   const [selectedOutcome, setSelectedOutcome] = useState<TOutcomeSchema | null>(
     null,
@@ -63,6 +69,7 @@ const TrendingMarketCard = ({
       { totalVolume: 0, totalNotional: 0 },
     );
   }, [outcomesWS]);
+  const outcomeSocket = useOutcomeSocket(selectedOutcome?.id);
   useSocketEvent<{
     market_id: number;
     outcomes: IOutcome[];
@@ -120,7 +127,11 @@ const TrendingMarketCard = ({
     );
   };
 
-  if (trendingMarket.isLoading || marketSocket.isSocketLoading) {
+  if (
+    trendingMarket.isLoading ||
+    marketSocket.isMarketSocketLoading ||
+    accountSocket.isAccountSocketLoading
+  ) {
     return <Loading />;
   }
 
@@ -242,7 +253,7 @@ const TrendingMarketCard = ({
               {orderType === EOrderType.LIMIT && (
                 <div>
                   <label className="text-sm text-muted-foreground">
-                    Limit price (¢)
+                    Limit price (¢) (Price per quantity)
                   </label>
                   <input
                     type="number"
@@ -269,9 +280,7 @@ const TrendingMarketCard = ({
               {orderType === EOrderType.MARKET && (
                 <div className="flex items-center justify-between text-sm text-muted-foreground border rounded-md p-2">
                   <span>Expiration</span>
-                  <span className="font-medium text-foreground">
-                    Good ’til cancelled
-                  </span>
+                  <span className="font-medium text-foreground">IOC</span>
                 </div>
               )}
             </div>
