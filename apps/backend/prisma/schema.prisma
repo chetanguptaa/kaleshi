@@ -44,6 +44,7 @@ enum TimeInForce {
 
 model User {
   id              Int        @id @default(autoincrement())
+  avatar          String?
   email           String     @unique
   password        String
   name            String
@@ -78,16 +79,14 @@ model Account {
   user          User          @relation(fields: [userId], references: [id])
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  orders        Order[]
   comments      Comment[]
   commentVotes  CommentVote[]
-  buyerFills    Fill[]        @relation("BuyerAccountFills")
-  sellerFills   Fill[]        @relation("SellerAccountFills")
 }
 
 model MarketCategory {
   id          Int              @id @default(autoincrement())
   name        String           @unique
+  avatar      String?
   information Json?
   parentId    Int?
   markets     Market[]
@@ -100,6 +99,7 @@ model MarketCategory {
 model Market {
   id               Int            @id @default(autoincrement())
   name             String
+  avatar           String?
   startsAt         DateTime // when the voting can start
   endsAt           DateTime // when the voting will end
   marketCategoryId Int
@@ -119,39 +119,14 @@ model Market {
 model Outcome {
   id             String   @id @default(uuid())
   name           String
+  avatar         String?
   marketId       Int
-  ticker         String   @unique
   settledPrice   Int?
   isResolved     Boolean?
   winningOutcome Boolean?
   market         Market   @relation(fields: [marketId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
-  orders         Order[]
-}
-
-model Order {
-  id               String      @id @default(uuid())
-  side             OrderSide // BUY or SELL
-  price            Int? // points / cents 0–100 and Pointer: Only required for limit orders
-  quantity         Int // multiplel off 100, remaining open quantity
-  originalQuantity Int
-  accountId        String
-  outcomeId        String
-  status           OrderStatus @default(OPEN)
-  orderType        OrderType   @default(LIMIT)
-  timeInForce      TimeInForce @default(GTC)
-  account          Account     @relation(fields: [accountId], references: [id])
-  outcome          Outcome     @relation(fields: [outcomeId], references: [id])
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @default(now())
-  buyerFills       Fill[]      @relation("BuyerFills")
-  sellerFills      Fill[]      @relation("SellerFills")
-
-  @@index([outcomeId, price])
-  @@index([outcomeId, side])
-  @@index([createdAt])
-  @@index([accountId])
 }
 
 model Comment {
@@ -186,21 +161,6 @@ model CommentVote {
 
   @@unique([accountId, commentId])
   @@index([commentId])
-}
-
-model Fill {
-  id              String   @id @default(uuid())
-  price           Int
-  quantity        Int
-  buyerOrderId    String
-  sellerOrderId   String
-  buyerAccountId  String
-  sellerAccountId String
-  createdAt       DateTime @default(now())
-  buyerOrder      Order    @relation("BuyerFills", fields: [buyerOrderId], references: [id])
-  sellerOrder     Order    @relation("SellerFills", fields: [sellerOrderId], references: [id])
-  buyerAccount    Account  @relation("BuyerAccountFills", fields: [buyerAccountId], references: [id])
-  sellerAccount   Account  @relation("SellerAccountFills", fields: [sellerAccountId], references: [id])
 }
 
 model Session {

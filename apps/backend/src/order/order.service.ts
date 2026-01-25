@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TCreateOrderSchema } from './order.controller';
 import { RedisPublisherService } from 'src/redis/redis.publisher.service';
-import { OrderNewEvent } from 'src/redis/redis.event-types';
+import { OrderNewEvent } from 'src/redis/redis-published-event-types';
 
 @Injectable()
 export class OrderService {
@@ -20,93 +20,71 @@ export class OrderService {
     if (!account) {
       throw new BadRequestException('Account does not exist');
     }
-    if (
-      body.orderType === 'LIMIT' &&
-      body.price &&
-      account.coins < body.price
-    ) {
-      throw new BadRequestException('Not enough balance available');
+    const outcome = await this.prismaService.outcome.findUnique({
+      where: {
+        id: body.outcomeId,
+      },
+    });
+    if (!outcome) {
+      throw new BadRequestException('Outcome does not exist');
     }
-    const order = await this.prismaService.$transaction(async (tx) => {
-      const account = await tx.account.findUnique({
-        where: { id: accountId },
-      });
-      if (!account) {
-        throw new BadRequestException('Account does not exist');
-      }
-      const orderCost =
-        body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;
-      const available = account.coins - account.reservedCoins;
-      if (orderCost > available) {
-        throw new BadRequestException('Not enough available balance');
-      }
-      await tx.account.update({
-        where: { id: accountId },
-        data: {
-          reservedCoins: {
-            increment: orderCost,
-          },
+    const orderCost =
+      body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;
+    const available = account.coins - account.reservedCoins;
+    if (
+      (body.orderType === 'LIMIT' &&
+        body.price &&
+        account.coins < body.price) ||
+      orderCost > available
+    ) {
+      throw new BadRequestException('Not enough available balance');
+    }
+    await this.prismaService.account.update({
+      where: { id: accountId },
+      data: {
+        reservedCoins: {
+          increment: orderCost,
         },
-      });
-      const order = await tx.order.create({
-        data: {
-          accountId,
-          outcomeId: body.outcomeId,
-          side: body.side,
-          quantity: body.quantity * 100,
-          originalQuantity: body.quantity * 100,
-          price: body.price ? body.price * 100 : null,
-          orderType: body.orderType,
-          status: 'OPEN',
-        },
-        include: {
-          outcome: true,
-        },
-      });
-      return order;
+      },
     });
     const eventData: OrderNewEvent = {
       type: 'order.new',
-      order_id: order.id,
-      outcome_id: order.outcomeId,
-      outcome_name: order.outcome.name,
-      ticker: order.outcome.ticker,
-      market_id: order.outcome.marketId,
+      outcome_id: body.outcomeId,
+      market_id: outcome.marketId,
       account_id: accountId,
-      side: order.side,
-      order_type: order.orderType,
-      price: order.price,
-      qty_remaining: order.quantity,
-      qty_original: order.originalQuantity,
+      side: body.side,
+      order_type: body.orderType,
+      price: orderCost,
+      quantity: body.quantity,
     };
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {
       success: true,
-      id: order.id,
+      message: 'Order has been received successfully!',
     };
   }
 
-  async cancelOrder(accountId: string, orderId: string) {
-    const order = await this.prismaService.order.findUnique({
-      where: { id: orderId },
-    });
-    if (!order || order.accountId !== accountId) {
-      throw new BadRequestException('Order not found or unauthorized');
-    }
-    if (order.status !== 'OPEN' && order.status !== 'PARTIAL') {
-      throw new BadRequestException('Cannot cancel closed order');
-    }
-    await this.prismaService.order.update({
-      where: { id: orderId },
-      data: { status: 'CANCELLED' },
-    });
-    await this.redisPublisherService.pushOrderCommand({
-      type: 'order.cancelled',
-      order_id: orderId,
-      account_id: accountId,
-      outcome_id: order.outcomeId,
-      timestamp: new Date().toISOString(),
-    });
-    return { success: true };
-  }
+  // async cancelOrder(accountId: string, orderId: string) {
+  //   const order = await this.prismaService.order.findUnique({
+  //     where: { id: orderId },
+  //   });
+  //   if (!order || order.accountId !== accountId) {
+  //     throw new BadRequestException('Order not found or unauthorized');
+  //   }
+  //   if (order.status !== 'OPEN' && order.status !== 'PARTIAL') {
+  //     throw new BadRequestException('Cannot cancel closed order');
+  //   }
+  //   await this.prismaService.order.update({
+  //     where: { id: orderId },
+  //     data: { status: 'CANCELLED' },
+  //   });
+  //   await this.redisPublisherService.pushOrderCommand({
+  //     type: 'order.cancelled',
+  //     order_id: orderId,
+  //     account_id: accountId,
+  //     outcome_id: order.outcomeId,
+  //     timestamp: new Date().toISOString(),
+  //   });
+  //   return { success: true };
+  // }
 }

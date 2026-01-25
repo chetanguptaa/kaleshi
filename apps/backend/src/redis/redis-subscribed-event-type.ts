@@ -1,20 +1,3 @@
-import { OrderSide, OrderType } from 'generated/prisma/enums';
-
-export type OrderNewEvent = {
-  type: 'order.new';
-  order_id: string;
-  outcome_id: string;
-  ticker: string;
-  market_id: number;
-  outcome_name: string;
-  account_id: string;
-  side: OrderSide;
-  order_type: OrderType;
-  price: number | null;
-  qty_remaining: number;
-  qty_original: number;
-};
-
 export type OrderPartialEvent = {
   type: 'order.partial';
   order_id: string;

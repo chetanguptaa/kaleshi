@@ -2,7 +2,6 @@ import {
   BadRequestException,
   Body,
   Controller,
-  Param,
   Post,
   Req,
   UseGuards,
@@ -60,9 +59,9 @@ export class OrderController {
     return await this.orderService.placeOrder(accountId, parsed.data);
   }
 
-  @Post(':orderId/cancel')
-  async cancel(@Req() req: AppRequest, @Param('orderId') orderId: string) {
-    const accountId = req.user.accountId!;
-    return await this.orderService.cancelOrder(accountId, orderId);
-  }
+  // @Post(':orderId/cancel')
+  // async cancel(@Req() req: AppRequest, @Param('orderId') orderId: string) {
+  //   const accountId = req.user.accountId!;
+  //   return await this.orderService.cancelOrder(accountId, orderId);
+  // }
 }

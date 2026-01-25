@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
 import { ORDER_COMMANDS_STREAM } from './redis.constants';
-import { OrderCancelledEvent, OrderNewEvent } from './redis.event-types';
+import {
+  // OrderCancelledEvent,
+  OrderNewEvent,
+} from './redis-published-event-types';
 
 @Injectable()
 export class RedisPublisherService {
@@ -18,7 +21,7 @@ export class RedisPublisherService {
    * Push a command into the Redis Stream for the matching engine.
    * Stream name: orders.commands.stream
    */
-  async pushOrderCommand(eventData: OrderNewEvent | OrderCancelledEvent) {
+  async pushOrderCommand(eventData: OrderNewEvent) {
     try {
       const fields: Record<string, string> = Object.fromEntries(
         Object.entries(eventData).map(([k, v]) => [

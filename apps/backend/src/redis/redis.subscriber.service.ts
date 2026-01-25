@@ -5,7 +5,7 @@ import {
   ENGINE_EVENT_PROCESSED_CHANNEL,
   ENGINE_EVENT_CHANNEL,
 } from './redis.constants';
-import { EngineEvent } from './redis.event-types';
+import { EngineEvent } from './redis-published-event-types';
 import { WsGateway } from 'src/websocket/ws.gateway';
 
 @Injectable()
