@@ -14,10 +14,10 @@ export default function AuthLayout({
   currentUser: TGetCurrentUserResponse | null;
 }) {
   const navigate = useNavigate();
-  useEffect(() => {
-    if (!currentUser?.user || !currentUser.success) {
-      navigate("/auth/login");
-    }
-  }, [currentUser, navigate]);
+  // useEffect(() => {
+  //   if (!currentUser?.user || !currentUser.success) {
+  //     navigate("/auth/login");
+  //   }
+  // }, [currentUser, navigate]);
   return <div className="bg-background">{children}</div>;
 }

@@ -15,8 +15,8 @@ datasource db {
 }
 
 enum OrderSide {
-  BUY
-  SELL
+  Buy
+  Sell
 }
 
 enum CommentVoteType {
@@ -29,6 +29,7 @@ enum OrderStatus {
   PARTIAL
   FILLED
   CANCELLED
+  REJECTED
 }
 
 enum OrderType {
@@ -46,6 +47,7 @@ model User {
   id              Int        @id @default(autoincrement())
   email           String     @unique
   password        String
+  avatar          String?
   name            String
   account         Account?
   isEmailVerified Boolean    @default(false)
@@ -86,25 +88,27 @@ model Account {
 }
 
 model MarketCategory {
-  id          Int              @id @default(autoincrement())
-  name        String           @unique
-  information Json?
-  parentId    Int?
-  markets     Market[]
-  parent      MarketCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    MarketCategory[] @relation("CategoryHierarchy")
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id        Int              @id @default(autoincrement())
+  name      String           @unique
+  avatar    String?
+  metadata  Json?
+  parentId  Int?
+  markets   Market[]
+  parent    MarketCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children  MarketCategory[] @relation("CategoryHierarchy")
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 }
 
 model Market {
   id               Int            @id @default(autoincrement())
   name             String
+  avatar           String?
+  metadata         Json?
   startsAt         DateTime // when the voting can start
   endsAt           DateTime // when the voting will end
   marketCategoryId Int
   isActive         Boolean        @default(false)
-  information      Json?
   ruleBook         String?
   rules            String?
   marketCategory   MarketCategory @relation(fields: [marketCategoryId], references: [id])
@@ -120,7 +124,8 @@ model Outcome {
   id             String   @id @default(uuid())
   name           String
   marketId       Int
-  ticker         String   @unique
+  avatar         String?
+  metadata       Json?
   settledPrice   Int?
   isResolved     Boolean?
   winningOutcome Boolean?
@@ -133,7 +138,7 @@ model Outcome {
 model Order {
   id               String      @id @default(uuid())
   side             OrderSide // BUY or SELL
-  price            Int? // points / cents 0–100 and Pointer: Only required for limit orders
+  price            Int // points / cents 0–100 and Pointer: Only required for limit orders
   quantity         Int // multiplel off 100, remaining open quantity
   originalQuantity Int
   accountId        String

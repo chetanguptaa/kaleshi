@@ -1,9 +1,6 @@
 import "dotenv/config";
 import { createClient } from "redis";
 import { EngineEvent, TStreamResponse } from "./types";
-import handleOrderFill from "./handler/orderFilled";
-import handleOrderPartial from "./handler/orderPartial";
-import handleOrderCancelled from "./handler/orderCancelled";
 import {
   CONSUMER,
   GROUP,
@@ -13,6 +10,7 @@ import {
   OUTPUT_STREAM,
   READ_COUNT,
 } from "./constants";
+import { handleBookDepth } from "./handler/handleBookDepth";
 
 const redis = createClient({ url: process.env.REDIS_URL! });
 
@@ -41,24 +39,15 @@ async function processMessage(redis: any, id: string, payload: string) {
   }
   try {
     switch (event.type) {
-      case "order.filled":
-        await handleOrderFill(event);
+      case "book.depth": {
+        await handleBookDepth(event);
         break;
-      case "order.partial":
-        await handleOrderPartial(event);
-        break;
-      case "order.cancelled":
-        await handleOrderCancelled(event);
-        break;
+      }
     }
-    // ACK input
     await redis.xAck(INPUT_STREAM, GROUP, id);
-    // Durable output
     await redis.xAdd(OUTPUT_STREAM, "*", { payload });
-    // Fan-out
     await redis.publish(OUTPUT_CHANNEL, payload);
   } catch (err) {
-    // NOT acked → will be retried / reclaimed
     console.error("Processing failed", err);
   }
 }

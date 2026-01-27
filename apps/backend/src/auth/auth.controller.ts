@@ -95,6 +95,6 @@ export class AuthController {
   @Get('me')
   @UseGuards(AuthGuard)
   me(@Req() req: AppRequest) {
-    return { success: true, user: req.user };
+    return this.authService.getMe(req);
   }
 }

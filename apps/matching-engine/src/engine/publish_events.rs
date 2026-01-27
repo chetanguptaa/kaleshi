@@ -1,7 +1,6 @@
+use crate::engine::order::OrderSide;
 use rust_order_book::{OrderId, Price, Quantity, TimeInForce};
 use serde::{Deserialize, Serialize};
-
-use crate::engine::order::OrderSide;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
@@ -17,7 +16,7 @@ pub enum PublishEngineEvent {
     },
     OrderPartial {
         order_id: OrderId,
-        filled_order_id: OrderId,
+        // filled_order_id: OrderId,
         account_id: String,
         outcome_id: String,
         side: OrderSide,
@@ -29,7 +28,7 @@ pub enum PublishEngineEvent {
     },
     OrderFilled {
         order_id: OrderId,
-        filled_order_id: OrderId,
+        // filled_order_id: OrderId,
         account_id: String,
         outcome_id: String,
         side: OrderSide,
@@ -47,7 +46,6 @@ pub enum PublishEngineEvent {
         time_in_force: Option<TimeInForce>,
     },
     OrderRejected {
-        order_id: OrderId,
         account_id: String,
         outcome_id: String,
         side: OrderSide,

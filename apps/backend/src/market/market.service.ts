@@ -17,7 +17,7 @@ export class MarketService {
             marketCategoryId: body.marketCategoryId,
             startsAt: body.startsAt,
             endsAt: body.endsAt,
-            information: body.information ?? {},
+            metadata: body.metadata ?? {},
             ruleBook: body.ruleBook ?? null,
             rules: body.rules ?? null,
           },
@@ -25,7 +25,6 @@ export class MarketService {
         await tx.outcome.createMany({
           data: body.outcomes.map((o) => ({
             name: o.name,
-            ticker: o.ticker,
             marketId: newMarket.id,
           })),
         });
@@ -109,12 +108,10 @@ export class MarketService {
           select: {
             id: true,
             name: true,
-            ticker: true,
           },
         },
         name: true,
         isActive: true,
-        information: true,
       },
     });
     if (!market || (!userRoles.includes(ROLES.ADMIN) && !market.isActive)) {

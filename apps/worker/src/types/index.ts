@@ -29,10 +29,20 @@ export type OrderCancelledEvent = {
   timestamp: string;
 };
 
+export type BookDepthEvent = {
+  type: "book.depth";
+  market_id: number;
+  outcome_id: string;
+  bids: [number, number][];
+  asks: [number, number][];
+  timestamp: number;
+};
+
 export type EngineEvent =
   | OrderPartialEvent
   | OrderFilledEvent
-  | OrderCancelledEvent;
+  | OrderCancelledEvent
+  | BookDepthEvent;
 
 export type TStreamMessage = {
   id: string;

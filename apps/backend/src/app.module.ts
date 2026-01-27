@@ -15,6 +15,7 @@ import { RedisModule } from './redis/redis.module';
 import { OrderModule } from './order/order.module';
 import { FillModule } from './fill/fill.module';
 import { WsModule } from './websocket/ws.module';
+import { TimeseriesModule } from './timeseries/timeseries.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { WsModule } from './websocket/ws.module';
     OrderModule,
     FillModule,
     WsModule,
+    TimeseriesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

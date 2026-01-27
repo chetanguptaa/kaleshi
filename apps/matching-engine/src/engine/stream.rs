@@ -1,23 +1,33 @@
 use crate::engine::order::OrderWire;
 use crate::engine::{engine::MatchingEngine, order::Order};
+use crate::error::{EngineError, EngineResult};
 use crate::infra::ledger::append_events_to_ledger;
 use crate::infra::view_emitter::ViewEmitter;
-use redis::RedisResult;
 use redis::Value as RedisValue;
 use redis::aio::Connection;
 use serde_json::Value as SerdeJsonValue;
+use std::time::Duration;
+use tracing::{debug, error, info, warn};
 
 const STREAM_KEY: &str = "orders.commands.stream";
 const GROUP: &str = "engine-group";
+const BLOCK_TIMEOUT_MS: usize = 1000;
+const BATCH_SIZE: usize = 50;
+const AUTOCLAIM_IDLE_TIME_MS: usize = 30000; // 30 seconds
 
 pub async fn start_order_stream_loop(
     redis_url: String,
     mut engine: MatchingEngine,
     mut view_emitter: ViewEmitter,
-) -> RedisResult<()> {
-    let client = redis::Client::open(redis_url)?;
-    let mut conn = client.get_async_connection().await?;
-    let _: RedisResult<()> = redis::cmd("XGROUP")
+) -> EngineResult<()> {
+    let client = redis::Client::open(redis_url)
+        .map_err(|e| EngineError::Configuration(format!("Invalid Redis URL: {}", e)))?;
+    let mut conn = client
+        .get_async_connection()
+        .await
+        .map_err(|e| EngineError::Redis(e))?;
+    // Create consumer group (ignore error if already exists)
+    let _: Result<(), redis::RedisError> = redis::cmd("XGROUP")
         .arg("CREATE")
         .arg(STREAM_KEY)
         .arg(GROUP)
@@ -25,141 +35,277 @@ pub async fn start_order_stream_loop(
         .arg("MKSTREAM")
         .query_async(&mut conn)
         .await;
-    let consumer_name = std::env::var("ENGINE_ID").unwrap_or_else(|_| "engine-1".to_string());
+    let consumer_name = std::env::var("ENGINE_ID").unwrap_or_else(|_| {
+        let default = "engine-1".to_string();
+        warn!("ENGINE_ID not set, using default: {}", default);
+        default
+    });
+
+    info!(
+        "Starting order stream consumer: {} for group: {}",
+        consumer_name, GROUP
+    );
+
+    // Reclaim pending messages on startup
+    if let Err(e) =
+        reclaim_pending_messages(&mut conn, &consumer_name, &mut engine, &mut view_emitter).await
     {
-        let reclaimed: RedisValue = redis::cmd("XAUTOCLAIM")
-            .arg(STREAM_KEY)
-            .arg(GROUP)
-            .arg(&consumer_name)
-            .arg(0)
-            .arg("0-0")
-            .query_async(&mut conn)
-            .await?;
-        {}
-        process_stream_reply(
-            &mut conn,
-            &mut engine,
-            STREAM_KEY,
-            GROUP,
-            reclaimed,
-            &mut view_emitter,
-        )
-        .await?;
+        error!("Failed to reclaim pending messages: {}", e);
+        // Don't fail startup, just log the error
     }
+
+    // Main processing loop
     loop {
-        let reply: RedisValue = redis::cmd("XREADGROUP")
-            .arg("GROUP")
-            .arg(GROUP)
-            .arg(&consumer_name)
-            .arg("BLOCK")
-            .arg(1000)
-            .arg("COUNT")
-            .arg(50)
-            .arg("STREAMS")
-            .arg(STREAM_KEY)
-            .arg(">")
-            .query_async(&mut conn)
-            .await?;
-        process_stream_reply(
-            &mut conn,
-            &mut engine,
-            STREAM_KEY,
-            GROUP,
-            reply,
-            &mut view_emitter,
-        )
-        .await?;
+        match process_stream_batch(&mut conn, &consumer_name, &mut engine, &mut view_emitter).await
+        {
+            Ok(_) => {
+                // Successful batch processing
+                debug!("Processed batch successfully");
+            }
+            Err(e) => {
+                // Log error but continue processing
+                error!(
+                    "Error processing stream batch (severity: {}): {}",
+                    e.severity(),
+                    e
+                );
+
+                // For critical errors, we might want to back off
+                if matches!(e.severity(), crate::error::ErrorSeverity::Critical) {
+                    warn!("Critical error encountered, backing off for 5 seconds");
+                    tokio::time::sleep(Duration::from_secs(5)).await;
+                }
+            }
+        }
     }
 }
 
+/// Reclaim messages that were pending but not acknowledged
+async fn reclaim_pending_messages(
+    conn: &mut Connection,
+    consumer_name: &str,
+    engine: &mut MatchingEngine,
+    view_emitter: &mut ViewEmitter,
+) -> EngineResult<()> {
+    info!("Attempting to reclaim pending messages");
+
+    let reclaimed: RedisValue = redis::cmd("XAUTOCLAIM")
+        .arg(STREAM_KEY)
+        .arg(GROUP)
+        .arg(consumer_name)
+        .arg(AUTOCLAIM_IDLE_TIME_MS)
+        .arg("0-0")
+        .query_async(conn)
+        .await
+        .map_err(|e| {
+            EngineError::StreamProcessing(format!("Failed to autoclaim messages: {}", e))
+        })?;
+
+    process_stream_reply(conn, engine, STREAM_KEY, GROUP, reclaimed, view_emitter).await?;
+
+    info!("Pending message reclaim completed");
+    Ok(())
+}
+
+/// Process a single batch of messages from the stream
+async fn process_stream_batch(
+    conn: &mut Connection,
+    consumer_name: &str,
+    engine: &mut MatchingEngine,
+    view_emitter: &mut ViewEmitter,
+) -> EngineResult<()> {
+    let reply: RedisValue = redis::cmd("XREADGROUP")
+        .arg("GROUP")
+        .arg(GROUP)
+        .arg(consumer_name)
+        .arg("BLOCK")
+        .arg(BLOCK_TIMEOUT_MS)
+        .arg("COUNT")
+        .arg(BATCH_SIZE)
+        .arg("STREAMS")
+        .arg(STREAM_KEY)
+        .arg(">")
+        .query_async(conn)
+        .await
+        .map_err(|e| EngineError::StreamProcessing(format!("Failed to read from stream: {}", e)))?;
+
+    process_stream_reply(conn, engine, STREAM_KEY, GROUP, reply, view_emitter).await
+}
+
+/// Process the reply from XREADGROUP or XAUTOCLAIM
 pub async fn process_stream_reply(
-    conn: &mut redis::aio::Connection,
+    conn: &mut Connection,
     engine: &mut MatchingEngine,
     stream_key: &str,
     group: &str,
     reply: RedisValue,
     view_emitter: &mut ViewEmitter,
-) -> RedisResult<()> {
+) -> EngineResult<()> {
     let RedisValue::Bulk(streams) = reply else {
+        // Empty response (timeout), not an error
         return Ok(());
     };
+
     for stream in streams {
         let RedisValue::Bulk(items) = stream else {
+            warn!("Unexpected stream format, skipping");
             continue;
         };
+
         if items.len() < 2 {
+            warn!("Stream items has insufficient data, skipping");
             continue;
         }
+
         let RedisValue::Bulk(entries) = &items[1] else {
+            warn!("Entries is not a bulk type, skipping");
             continue;
         };
+
         for entry in entries {
-            let RedisValue::Bulk(pair) = entry else {
-                continue;
-            };
-            if pair.len() < 2 {
-                continue;
-            }
-            let id = match &pair[0] {
-                RedisValue::Data(bytes) => String::from_utf8_lossy(bytes).into_owned(),
-                _ => continue,
-            };
-            let mut map = serde_json::Map::new();
-            if let RedisValue::Bulk(kvs) = &pair[1] {
-                let mut iter = kvs.iter();
-                while let (Some(RedisValue::Data(k)), Some(RedisValue::Data(v))) =
-                    (iter.next(), iter.next())
-                {
-                    map.insert(
-                        String::from_utf8_lossy(k).into_owned(),
-                        SerdeJsonValue::String(String::from_utf8_lossy(v).into_owned()),
-                    );
-                }
-            }
-            let payload = SerdeJsonValue::Object(map);
-            match handle_message(conn, engine, &payload, view_emitter).await {
-                Ok(_) => {
-                    let _: RedisResult<()> = redis::cmd("XACK")
-                        .arg(stream_key)
-                        .arg(group)
-                        .arg(&id)
-                        .query_async(conn)
-                        .await;
-                }
-                Err(err) => {
-                    eprintln!("Message {} failed processing; leaving pending: {}", id, err);
-                    // NO ACK
-                }
+            if let Err(e) =
+                process_single_entry(conn, engine, stream_key, group, entry, view_emitter).await
+            {
+                // Log the error but continue processing other entries
+                error!(
+                    "Failed to process entry (severity: {}): {}",
+                    e.severity(),
+                    e
+                );
             }
         }
     }
+
     Ok(())
 }
 
+/// Process a single stream entry
+async fn process_single_entry(
+    conn: &mut Connection,
+    engine: &mut MatchingEngine,
+    stream_key: &str,
+    group: &str,
+    entry: &RedisValue,
+    view_emitter: &mut ViewEmitter,
+) -> EngineResult<()> {
+    dbg!("hi there 1000");
+    let RedisValue::Bulk(pair) = entry else {
+        return Err(EngineError::InvalidMessage(
+            "Entry is not a bulk type".to_string(),
+        ));
+    };
+
+    if pair.len() < 2 {
+        return Err(EngineError::InvalidMessage(
+            "Entry pair has insufficient data".to_string(),
+        ));
+    }
+
+    let id = match &pair[0] {
+        RedisValue::Data(bytes) => String::from_utf8_lossy(bytes).into_owned(),
+        _ => {
+            return Err(EngineError::InvalidMessage(
+                "Entry ID is not data type".to_string(),
+            ));
+        }
+    };
+    debug!("Processing message with ID: {}", id);
+
+    let mut map = serde_json::Map::new();
+    if let RedisValue::Bulk(kvs) = &pair[1] {
+        let mut iter = kvs.iter();
+        while let (Some(RedisValue::Data(k)), Some(RedisValue::Data(v))) =
+            (iter.next(), iter.next())
+        {
+            map.insert(
+                String::from_utf8_lossy(k).into_owned(),
+                SerdeJsonValue::String(String::from_utf8_lossy(v).into_owned()),
+            );
+        }
+    }
+
+    let payload = SerdeJsonValue::Object(map);
+
+    dbg!("payload ", &payload);
+
+    match handle_message(conn, engine, &payload, view_emitter).await {
+        Ok(_) => {
+            // Successfully processed, acknowledge the message
+            let _: Result<(), redis::RedisError> = redis::cmd("XACK")
+                .arg(stream_key)
+                .arg(group)
+                .arg(&id)
+                .query_async(conn)
+                .await;
+
+            debug!("Message {} processed and acknowledged", id);
+            Ok(())
+        }
+        Err(e) => {
+            // Check if error is retryable
+            if e.is_retryable() {
+                warn!(
+                    "Message {} failed with retryable error, leaving pending: {}",
+                    id, e
+                );
+                // Don't ACK - message will be retried
+            } else {
+                error!(
+                    "Message {} failed with non-retryable error: {}. ACKing to prevent reprocessing",
+                    id, e
+                );
+                // ACK to prevent infinite retries of bad messages
+                let _: Result<(), redis::RedisError> = redis::cmd("XACK")
+                    .arg(stream_key)
+                    .arg(group)
+                    .arg(&id)
+                    .query_async(conn)
+                    .await;
+            }
+            Err(e)
+        }
+    }
+}
+
+/// Handle an individual message based on its type
 async fn handle_message(
     redis_conn: &mut Connection,
     engine: &mut MatchingEngine,
     payload: &SerdeJsonValue,
     view_emitter: &mut ViewEmitter,
-) -> Result<(), anyhow::Error> {
+) -> EngineResult<()> {
+    dbg!("hi there");
     let msg_type = payload
         .get("type")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow::anyhow!("missing type"))?;
+        .ok_or_else(|| EngineError::MissingField("type".to_string()))?;
+    debug!("Handling message of type: {}", msg_type);
     match msg_type {
-        "order.new" => {
-            let wire = serde_json::from_value::<OrderWire>(payload.clone())?;
-            let order = Order::try_from(wire)?;
-            let (_, orderbook, snapshots) = engine.order_execution(&order);
-            {
-                append_events_to_ledger(redis_conn, &snapshots).await?;
-            }
-            let book_depth = orderbook.depth(None);
-            view_emitter
-                .emit_book_depth(&order.outcome_id, book_depth)
-                .await;
-            Ok(())
-        }
-        _ => Err(anyhow::anyhow!("unknown event type")),
+        "order.new" => handle_new_order(redis_conn, engine, payload, view_emitter).await,
+        _ => Err(EngineError::UnknownEventType(msg_type.to_string())),
     }
+}
+
+/// Handle a new order message
+async fn handle_new_order(
+    redis_conn: &mut Connection,
+    engine: &mut MatchingEngine,
+    payload: &SerdeJsonValue,
+    view_emitter: &mut ViewEmitter,
+) -> EngineResult<()> {
+    let wire =
+        serde_json::from_value::<OrderWire>(payload.clone()).map_err(|e| EngineError::Json(e))?;
+    let order = Order::try_from(wire)
+        .map_err(|e| EngineError::OrderValidation(format!("Order validation failed: {}", e)))?;
+    let (events, orderbook, snapshots) = engine.order_execution(&order);
+    debug!("Order execution generated {} events", events.len());
+    append_events_to_ledger(redis_conn, &snapshots)
+        .await
+        .map_err(|e| EngineError::Ledger(format!("Failed to append to ledger: {}", e)))?;
+    let book_depth = orderbook.depth(None);
+    view_emitter
+        .emit_book_depth(&order.outcome_id, book_depth)
+        .await
+        .map_err(|e| EngineError::ViewEmission(format!("Failed to emit book depth: {}", e)))?;
+    Ok(())
 }

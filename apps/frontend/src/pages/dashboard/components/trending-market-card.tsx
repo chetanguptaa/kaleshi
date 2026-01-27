@@ -298,7 +298,7 @@ const TrendingMarketCard = ({
                   onClick={handleSubmit}
                   disabled={isPending}
                 >
-                  {orderSide === "BUY" ? "Buy" : "Sell"}
+                  {orderSide === "Buy" ? "Buy" : "Sell"}
                 </Button>
               )}
             </div>

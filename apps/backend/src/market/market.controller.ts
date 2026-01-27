@@ -26,11 +26,10 @@ const createMarketSchema = z
       .array(
         z.object({
           name: z.string().min(3),
-          ticker: z.string().min(3),
         }),
       )
       .min(2),
-    information: z.json().optional(),
+    metadata: z.json().optional(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
     startsAt: z.coerce.date(),

@@ -17,7 +17,7 @@ import { z } from 'zod';
 const createMarketCategorySchema = z
   .object({
     name: z.string().min(3),
-    information: z.json().optional(),
+    metadata: z.json().optional(),
   })
   .strict();
 
@@ -28,7 +28,7 @@ export type TCreateMarketCategorySchema = z.infer<
 const createMarketCategoryChildSchema = z
   .object({
     name: z.string().min(3),
-    information: z.json().optional(),
+    metadata: z.json().optional(),
     parentId: z.number().int().min(1),
   })
   .strict();

@@ -1,4 +1,7 @@
-use crate::engine::engine::MatchingEngine;
+use crate::{
+    engine::engine::MatchingEngine,
+    error::{EngineError, EngineResult},
+};
 use redis::{AsyncCommands, Value, streams::StreamReadReply};
 use rust_order_book::Snapshot;
 
@@ -7,7 +10,7 @@ const LEDGER_STREAM: &str = "engine.ledger";
 pub async fn replay_ledger(
     redis: &mut redis::aio::Connection,
     engine: &mut MatchingEngine,
-) -> anyhow::Result<()> {
+) -> EngineResult<()> {
     let mut last_id = "0-0".to_string();
     loop {
         let reply: StreamReadReply = redis.xread(&[LEDGER_STREAM], &[&last_id]).await?;
@@ -16,16 +19,23 @@ pub async fn replay_ledger(
         }
         for key in reply.keys {
             for id in key.ids {
-                let payload_value = id
-                    .map
-                    .get("payload")
-                    .ok_or_else(|| anyhow::anyhow!("ledger entry missing payload"))?;
+                let payload_value = id.map.get("payload").ok_or_else(|| {
+                    EngineError::MissingField("ledger entry missing payload".to_string())
+                })?;
                 let payload = match payload_value {
-                    Value::Data(bytes) => std::str::from_utf8(bytes)?,
-                    _ => return Err(anyhow::anyhow!("payload is not bulk string")),
+                    Value::Data(bytes) => std::str::from_utf8(bytes).map_err(|e| {
+                        EngineError::StreamProcessing(format!("payload is not valid UTF-8: {}", e))
+                    })?,
+                    _ => {
+                        return Err(EngineError::InvalidMessage(
+                            "ledger payload is not a bulk string".to_string(),
+                        ));
+                    }
                 };
                 let snapshots: Vec<(String, Snapshot)> = serde_json::from_str(payload)?;
-                engine.apply_snapshots(snapshots);
+                engine.apply_snapshots(snapshots).map_err(|e| {
+                    EngineError::Snapshot(format!("failed to apply snapshots from ledger: {}", e))
+                })?;
                 last_id = id.id;
             }
         }

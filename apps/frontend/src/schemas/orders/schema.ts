@@ -6,8 +6,8 @@ export enum EOrderType {
 }
 
 export enum EOrderSide {
-  BUY = "BUY",
-  SELL = "SELL",
+  BUY = "Buy",
+  SELL = "Sell",
 }
 
 export const createOrderRequestSchema = z
@@ -37,7 +37,7 @@ export const createOrderRequestSchema = z
 
 export const createOrderResponseSchema = z.object({
   success: z.boolean(),
-  id: z.uuid(),
+  message: z.string().nullable().optional(),
 });
 
 export type TCreateOrderRequest = z.infer<typeof createOrderRequestSchema>;

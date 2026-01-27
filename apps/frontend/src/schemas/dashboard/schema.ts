@@ -4,12 +4,11 @@ export const marketCategorySchema = z
   .object({
     id: z.number(),
     name: z.string(),
-    information: z
-      .object({
-        avatar: z.string(),
-      })
-      .optional(),
-    children: z.array(z.lazy(() => marketCategorySchema)).optional(),
+    metadata: z.object().nullable(),
+    children: z
+      .array(z.lazy(() => marketCategorySchema))
+      .optional()
+      .nullable(),
     parentId: z.number().nullable(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -19,7 +18,6 @@ export const marketCategorySchema = z
 export const outcomeSchema = z
   .object({
     name: z.string(),
-    ticker: z.string(),
     id: z.string(),
   })
   .loose();
@@ -54,7 +52,7 @@ export const marketSchema = z
     outcomes: z.array(outcomeSchema),
     marketCategoryId: z.number().int(),
     isActive: z.boolean(),
-    information: z.json().optional(),
+    metadata: z.json().optional().nullable(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
   })
@@ -65,7 +63,7 @@ export const marketByIdSchema = z
     id: z.number(),
     name: z.string(),
     outcomes: z.array(outcomeSchema),
-    information: z.json(),
+    metadata: z.json().nullable().optional(),
     comments: z.array(commentSchema),
     isActive: z.boolean(),
   })

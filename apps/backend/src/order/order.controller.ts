@@ -22,7 +22,7 @@ const createOrderSchema = z
     outcomeId: z.uuid(),
     quantity: z.number(),
     price: z.number().optional(),
-    side: z.enum([OrderSide.BUY, OrderSide.SELL]),
+    side: z.enum([OrderSide.Buy, OrderSide.Sell]),
     orderType: z.enum([OrderType.LIMIT, OrderType.MARKET]),
   })
   .strict()

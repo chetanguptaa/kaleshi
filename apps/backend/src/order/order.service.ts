@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TCreateOrderSchema } from './order.controller';
 import { RedisPublisherService } from 'src/redis/redis.publisher.service';
@@ -27,62 +31,44 @@ export class OrderService {
     ) {
       throw new BadRequestException('Not enough balance available');
     }
-    const order = await this.prismaService.$transaction(async (tx) => {
-      const account = await tx.account.findUnique({
-        where: { id: accountId },
-      });
-      if (!account) {
-        throw new BadRequestException('Account does not exist');
-      }
-      const orderCost =
-        body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;
-      const available = account.coins - account.reservedCoins;
-      if (orderCost > available) {
-        throw new BadRequestException('Not enough available balance');
-      }
-      await tx.account.update({
-        where: { id: accountId },
-        data: {
-          reservedCoins: {
-            increment: orderCost,
-          },
+    const outcome = await this.prismaService.outcome.findUnique({
+      where: {
+        id: body.outcomeId,
+      },
+    });
+    if (!outcome) {
+      throw new NotFoundException('Outcome does not exist');
+    }
+    const orderCost =
+      body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;
+    const available = account.coins - account.reservedCoins;
+    if (orderCost > available) {
+      throw new BadRequestException('Not enough available balance');
+    }
+    await this.prismaService.account.update({
+      where: { id: accountId },
+      data: {
+        reservedCoins: {
+          increment: orderCost,
         },
-      });
-      const order = await tx.order.create({
-        data: {
-          accountId,
-          outcomeId: body.outcomeId,
-          side: body.side,
-          quantity: body.quantity * 100,
-          originalQuantity: body.quantity * 100,
-          price: body.price ? body.price * 100 : null,
-          orderType: body.orderType,
-          status: 'OPEN',
-        },
-        include: {
-          outcome: true,
-        },
-      });
-      return order;
+      },
     });
     const eventData: OrderNewEvent = {
       type: 'order.new',
-      order_id: order.id,
-      outcome_id: order.outcomeId,
-      outcome_name: order.outcome.name,
-      ticker: order.outcome.ticker,
-      market_id: order.outcome.marketId,
+      outcome_id: body.outcomeId,
+      outcome_name: outcome.name,
+      market_id: outcome.marketId,
       account_id: accountId,
-      side: order.side,
-      order_type: order.orderType,
-      price: order.price,
-      qty_remaining: order.quantity,
-      qty_original: order.originalQuantity,
+      side: body.side,
+      order_type: body.orderType,
+      price: body.price ?? 0,
+      qty_remaining: body.quantity,
+      qty_original: body.quantity,
     };
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {
       success: true,
-      id: order.id,
+      message: 'Order created successfully',
     };
   }
 

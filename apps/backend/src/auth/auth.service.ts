@@ -6,7 +6,7 @@ import {
 import * as bcrypt from 'bcrypt';
 import { add } from 'date-fns';
 import * as jwt from 'jsonwebtoken';
-import { IRequestUser } from 'src/@types/express';
+import { AppRequest, IRequestUser } from 'src/@types/express';
 import { PrismaService } from 'src/prisma.service';
 
 @Injectable()
@@ -128,5 +128,25 @@ export class AuthService {
     await this.prismaService.session
       .deleteMany({ where: { id: sessionId } })
       .catch(() => null);
+  }
+
+  async getMe(request: AppRequest) {
+    const user = await this.prismaService.user.findUnique({
+      where: { id: request.user.sub },
+      include: {
+        userRoles: {
+          include: {
+            role: true,
+          },
+        },
+        account: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException('Invalid credentials');
+    request.user.accountId = user.account?.id ?? null;
+    return {
+      success: true,
+      user: request.user,
+    };
   }
 }

@@ -15,7 +15,7 @@ export class MarketCategoryService {
       const newMarketCategory = await this.prismaService.marketCategory.create({
         data: {
           name: body.name,
-          information: body.information ?? {},
+          metadata: body.metadata ?? {},
         },
       });
       return { success: true, id: newMarketCategory.id };
@@ -35,7 +35,6 @@ export class MarketCategoryService {
         data: {
           parentId: body.parentId,
           name: body.name,
-          information: body.information ?? {},
         },
       });
       return { success: true, id: newMarketCategory.id };
@@ -107,7 +106,6 @@ export class MarketCategoryService {
               select: {
                 id: true,
                 name: true,
-                ticker: true,
               },
             },
           },
@@ -121,7 +119,6 @@ export class MarketCategoryService {
                   select: {
                     id: true,
                     name: true,
-                    ticker: true,
                   },
                 },
               },
