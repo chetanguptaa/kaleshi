@@ -16,3 +16,7 @@ futures = "0.3"
 sea-orm = { version = "0.12", features = ["sqlx-sqlite", "runtime-tokio-native-tls"] }
 anyhow = "1.0.100"
 dotenvy = "0.15"
+rust-order-book = "0.0.2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+thiserror = "2.0"

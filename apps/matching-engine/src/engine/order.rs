@@ -1,31 +1,36 @@
+use rust_order_book::Side;
 use serde::{Deserialize, Serialize};
 use std::error::Error;
 use std::{fmt, str::FromStr};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-pub enum Side {
-    BUY,
-    SELL,
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrderSide(pub Side);
+
+impl From<OrderSide> for Side {
+    fn from(value: OrderSide) -> Self {
+        value.0
+    }
 }
 
 #[derive(Debug)]
-pub struct ParseOrderSideError;
+pub struct OrderSideError;
 
-impl fmt::Display for ParseOrderSideError {
+impl fmt::Display for OrderSideError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "invalid side string")
     }
 }
 
-impl Error for ParseOrderSideError {}
+impl Error for OrderSideError {}
 
-impl FromStr for Side {
-    type Err = ParseOrderSideError; // Specify your custom error type
+impl FromStr for OrderSide {
+    type Err = OrderSideError;
+
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.to_string().as_str() {
-            "BUY" => Ok(Side::BUY),
-            "SELL" => Ok(Side::SELL),
-            _ => Err(ParseOrderSideError), // Return an error for invalid input
+        match s {
+            "Buy" | "BUY" => Ok(OrderSide(Side::Buy)),
+            "Sell" | "SELL" => Ok(OrderSide(Side::Sell)),
+            _ => Err(OrderSideError),
         }
     }
 }
@@ -60,7 +65,6 @@ impl FromStr for OrderType {
 
 #[derive(Deserialize)]
 pub struct OrderWire {
-    pub order_id: String,
     pub outcome_id: String,
     pub account_id: String,
     pub market_id: String,
@@ -75,24 +79,22 @@ pub struct OrderWire {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Order {
-    pub order_id: String,
     pub market_id: u32,
     pub ticker: String,
     pub outcome_name: String,
     pub outcome_id: String,
     pub account_id: String,
-    pub side: Side,
+    pub side: OrderSide,
     pub order_type: OrderType,
-    pub price: Option<u32>, // Pointer: None for MARKET
-    pub qty_remaining: u32,
-    pub qty_original: u32,
+    pub price: u64, // Pointer: None for MARKET
+    pub qty_remaining: u64,
+    pub qty_original: u64,
 }
 
 impl TryFrom<OrderWire> for Order {
     type Error = anyhow::Error;
     fn try_from(w: OrderWire) -> Result<Self, Self::Error> {
         Ok(Order {
-            order_id: w.order_id,
             market_id: w.market_id.parse()?,
             ticker: w.ticker,
             outcome_name: w.outcome_name,
@@ -100,7 +102,7 @@ impl TryFrom<OrderWire> for Order {
             account_id: w.account_id,
             side: w.side.parse()?,
             order_type: w.order_type.parse()?,
-            price: Some(w.price.parse()?),
+            price: w.price.parse()?,
             qty_remaining: w.qty_remaining.parse()?,
             qty_original: w.qty_original.parse()?,
         })
