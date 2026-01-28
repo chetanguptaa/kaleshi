@@ -16,7 +16,7 @@ import { Logger } from '@nestjs/common';
 export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   private readonly logger = new Logger(WsGateway.name);
   private server: Server | null = null;
-  private clientsByAccount = new Map<string, Socket>();
+  private clientsByAccount = new Map<number, Socket>();
   private subscribersByOutcome = new Map<string, Set<Socket>>();
   private subscribersByMarket = new Map<number, Set<Socket>>();
 
@@ -44,7 +44,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('registerAccount')
-  handleRegisterAccount(client: Socket, payload: { accountId: string }) {
+  handleRegisterAccount(client: Socket, payload: { accountId: number }) {
     this.clientsByAccount.set(payload.accountId, client);
     this.logger.debug(
       `Account ${payload.accountId} bound to socket ${client.id}`,
@@ -52,7 +52,7 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('unregisterAccount')
-  handleUnRegisterAccount(client: Socket, payload: { accountId: string }) {
+  handleUnRegisterAccount(client: Socket, payload: { accountId: number }) {
     this.clientsByAccount.delete(payload.accountId);
     this.logger.debug(
       `Account ${payload.accountId} unbounded to socket ${client.id}`,
@@ -131,17 +131,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // PRIVATE broadcast on orders
-  broadcastOrderPartial(accountId: string, payload: any) {
+  broadcastOrderPartial(accountId: number, payload: any) {
     const client = this.clientsByAccount.get(accountId);
     client?.emit('order.partial', payload);
   }
 
-  broadcastFill(buyerId: string, sellerId: string, payload: any) {
+  broadcastFill(buyerId: number, sellerId: number, payload: any) {
     this.clientsByAccount.get(buyerId)?.emit('order.filled', payload);
     this.clientsByAccount.get(sellerId)?.emit('order.filled', payload);
   }
 
-  broadcastCancel(accountId: string, payload: any) {
+  broadcastCancel(accountId: number, payload: any) {
     this.clientsByAccount.get(accountId)?.emit('order.cancelled', payload);
   }
 }

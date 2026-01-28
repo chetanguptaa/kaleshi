@@ -1,9 +1,9 @@
 use crate::{
     engine::engine::MatchingEngine,
     error::{EngineError, EngineResult},
+    orderbook::Snapshot,
 };
 use redis::{AsyncCommands, Value, streams::StreamReadReply};
-use rust_order_book::Snapshot;
 
 const LEDGER_STREAM: &str = "engine.ledger";
 

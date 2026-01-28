@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const accountSchema = z
   .object({
-    id: z.uuid(),
+    id: z.number(),
     coins: z.number(),
   })
   .loose();
@@ -10,7 +10,7 @@ export const accountSchema = z
 export const createTradingAccountResponseSchema = z
   .object({
     success: z.boolean(),
-    accountId: z.uuid(),
+    accountId: z.number(),
   })
   .loose();
 

@@ -1,5 +1,7 @@
-use crate::error::{EngineError, EngineResult};
-use rust_order_book::Side;
+use crate::{
+    error::{EngineError, EngineResult},
+    orderbook::Side,
+};
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
 use tracing::{debug, warn};
@@ -92,7 +94,7 @@ pub struct Order {
     pub market_id: u32,
     pub outcome_name: String,
     pub outcome_id: String,
-    pub account_id: String,
+    pub account_id: u64,
     pub side: OrderSide,
     pub order_type: OrderType,
     pub price: u64, // In smallest unit (e.g., cents). 0 for pure MARKET orders
@@ -110,7 +112,7 @@ impl Order {
             ));
         }
         // Validate account_id
-        if self.account_id.is_empty() {
+        if self.account_id == 0 {
             return Err(EngineError::OrderValidation(
                 "account_id cannot be empty".to_string(),
             ));
@@ -165,6 +167,9 @@ impl TryFrom<OrderWire> for Order {
         })?;
         let side = w.side.parse::<OrderSide>()?;
         let order_type = w.order_type.parse::<OrderType>()?;
+        let account_id = w.account_id.parse::<u64>().map_err(|e| {
+            EngineError::OrderValidation(format!("Invalid account_id '{}': {}", w.account_id, e))
+        })?;
         let price = w.price.parse::<u64>().map_err(|e| {
             EngineError::OrderValidation(format!("Invalid price '{}': {}", w.price, e))
         })?;
@@ -185,7 +190,7 @@ impl TryFrom<OrderWire> for Order {
             market_id,
             outcome_name: w.outcome_name,
             outcome_id: w.outcome_id,
-            account_id: w.account_id,
+            account_id,
             side,
             order_type,
             price,

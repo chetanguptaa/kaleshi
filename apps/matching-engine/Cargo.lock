@@ -447,7 +447,6 @@ dependencies = [
  "futures",
  "once_cell",
  "redis",
- "rust-order-book",
  "serde",
  "serde_json",
  "thiserror",
@@ -619,15 +618,6 @@ name = "regex-syntax"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
-
-[[package]]
-name = "rust-order-book"
-version = "0.0.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e72b8f0c2d131c14762c27c0f660f78483a1f4bf382fc7418e29b8c79aaf0699"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "rustversion"

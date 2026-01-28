@@ -40,7 +40,7 @@ class SocketService {
     }
   }
 
-  subscribeToMarket(marketId: number, accountId: string | null): Promise<void> {
+  subscribeToMarket(marketId: number, accountId: number | null): Promise<void> {
     this.connect();
     if (this.subscribedMarkets.has(marketId)) {
       return Promise.resolve();
@@ -64,7 +64,7 @@ class SocketService {
     });
   }
 
-  unsubscribeFromMarket(marketId: MarketId, accountId: string | null) {
+  unsubscribeFromMarket(marketId: MarketId, accountId: number | null) {
     if (!this.subscribedMarkets.has(marketId)) {
       return;
     }

@@ -1,32 +1,60 @@
+import { OrderSide, TimeInForce } from "generated/prisma/enums";
+
+export type OrderPlacedEvent = {
+  type: "order.placed";
+  order_id: number;
+  account_id: number;
+  outcome_id: string;
+  side: OrderSide;
+  quantity: number;
+  price: number;
+  time_in_force: TimeInForce | null;
+};
+
 export type OrderPartialEvent = {
   type: "order.partial";
-  order_id: string;
-  account_id: string;
-  remaining: number;
+  order_id: number;
+  account_id: number;
   outcome_id: string;
-  timestamp: number;
+  side: OrderSide;
+  quantity: number;
+  price: number;
+  remaining: number;
+  original_quantity: number;
+  time_in_force: TimeInForce | null;
 };
 
 export type OrderFilledEvent = {
   type: "order.filled";
-  fill_id: string;
-  buy_order_id: string;
-  sell_order_id: string;
-  buyer_account_id: string;
-  seller_account_id: string;
-  market_id: number;
+  order_id: number;
+  account_id: number;
   outcome_id: string;
-  price: number;
+  side: OrderSide;
   quantity: number;
-  timestamp: number;
+  price: number;
+  time_in_force: TimeInForce | null;
 };
 
 export type OrderCancelledEvent = {
   type: "order.cancelled";
-  order_id: string;
-  account_id: string;
+  side: OrderSide;
+  quantity: number;
+  price: number;
+  time_in_force: TimeInForce | null;
+  order_id: number;
+  account_id: number;
   outcome_id: string;
   timestamp: string;
+};
+
+export type OrderRejectedEvent = {
+  type: "order.rejected";
+  account_id: number;
+  outcome_id: string;
+  side: OrderSide;
+  quantity: number;
+  price: number;
+  time_in_force: TimeInForce | null;
 };
 
 export type BookDepthEvent = {
@@ -38,10 +66,29 @@ export type BookDepthEvent = {
   timestamp: number;
 };
 
+export type TradeEvent = {
+  type: "trade";
+  trade_id: string;
+  account_id: number;
+  outcome_id: string;
+  order_id: number;
+  filled_order_id: number;
+  filled_account_id: number;
+  price: number;
+  quantity: number;
+  side: OrderSide;
+  remaining: number;
+  order_quantity: number;
+  time_in_force: TimeInForce | null;
+};
+
 export type EngineEvent =
+  | OrderPlacedEvent
   | OrderPartialEvent
   | OrderFilledEvent
   | OrderCancelledEvent
+  | OrderRejectedEvent
+  | TradeEvent
   | BookDepthEvent;
 
 export type TStreamMessage = {

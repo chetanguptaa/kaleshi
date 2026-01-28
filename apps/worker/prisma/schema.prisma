@@ -73,7 +73,7 @@ model UserRole {
 }
 
 model Account {
-  id            String        @id @default(uuid())
+  id            Int           @id @default(autoincrement())
   coins         Int           @default(300) // Pointer: On the UI it'll show 3 only, i.e we'll divide it by 100,
   reservedCoins Int           @default(0)
   userId        Int           @unique
@@ -136,12 +136,12 @@ model Outcome {
 }
 
 model Order {
-  id               String      @id @default(uuid())
+  id               Int         @id
   side             OrderSide // BUY or SELL
   price            Int // points / cents 0–100 and Pointer: Only required for limit orders
   quantity         Int // multiplel off 100, remaining open quantity
   originalQuantity Int
-  accountId        String
+  accountId        Int
   outcomeId        String
   status           OrderStatus @default(OPEN)
   orderType        OrderType   @default(LIMIT)
@@ -150,8 +150,8 @@ model Order {
   outcome          Outcome     @relation(fields: [outcomeId], references: [id])
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @default(now())
-  buyerFills       Fill[]      @relation("BuyerFills")
-  sellerFills      Fill[]      @relation("SellerFills")
+  orderFills       Fill[]      @relation("orderFills")
+  fills            Fill[]      @relation("fills")
 
   @@index([outcomeId, price])
   @@index([outcomeId, side])
@@ -162,7 +162,7 @@ model Order {
 model Comment {
   id        String        @id @default(uuid())
   comment   String
-  accountId String
+  accountId Int
   marketId  Int
   parentId  String?
   account   Account       @relation(fields: [accountId], references: [id])
@@ -182,7 +182,7 @@ model Comment {
 
 model CommentVote {
   id        String          @id @default(uuid())
-  accountId String
+  accountId Int
   commentId String
   vote      CommentVoteType
   createdAt DateTime        @default(now())
@@ -197,15 +197,15 @@ model Fill {
   id              String   @id @default(uuid())
   price           Int
   quantity        Int
-  buyerOrderId    String
-  sellerOrderId   String
-  buyerAccountId  String
-  sellerAccountId String
+  filledOrderId   Int
+  orderId         Int
+  filledAccountId Int
+  accountId       Int
   createdAt       DateTime @default(now())
-  buyerOrder      Order    @relation("BuyerFills", fields: [buyerOrderId], references: [id])
-  sellerOrder     Order    @relation("SellerFills", fields: [sellerOrderId], references: [id])
-  buyerAccount    Account  @relation("BuyerAccountFills", fields: [buyerAccountId], references: [id])
-  sellerAccount   Account  @relation("SellerAccountFills", fields: [sellerAccountId], references: [id])
+  filledOrder     Order    @relation("orderFills", fields: [filledOrderId], references: [id])
+  order           Order    @relation("fills", fields: [orderId], references: [id])
+  account         Account  @relation("BuyerAccountFills", fields: [filledAccountId], references: [id])
+  filledAccount   Account  @relation("SellerAccountFills", fields: [accountId], references: [id])
 }
 
 model Session {

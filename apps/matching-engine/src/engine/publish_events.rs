@@ -1,23 +1,19 @@
-use crate::engine::order::OrderSide;
-use rust_order_book::{OrderId, Price, Quantity, TimeInForce};
+use crate::{
+    engine::order::OrderSide,
+    orderbook::{OrderId, Price, Quantity, TimeInForce, order::AccountId},
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[serde(tag = "type")]
 pub enum PublishEngineEvent {
-    OrderPlaced {
+    #[serde(rename = "trade")]
+    Trade {
+        trade_id: String,
         order_id: OrderId,
-        account_id: String,
-        outcome_id: String,
-        side: OrderSide,
-        quantity: Quantity,
-        price: Price,
-        time_in_force: Option<TimeInForce>,
-    },
-    OrderPartial {
-        order_id: OrderId,
-        // filled_order_id: OrderId,
-        account_id: String,
+        filled_order_id: OrderId,
+        filled_account_id: AccountId,
+        account_id: AccountId,
         outcome_id: String,
         side: OrderSide,
         quantity: Quantity,
@@ -26,27 +22,51 @@ pub enum PublishEngineEvent {
         original_quantity: Quantity,
         time_in_force: Option<TimeInForce>,
     },
+    #[serde(rename = "order.placed")]
+    OrderPlaced {
+        order_id: OrderId,
+        account_id: AccountId,
+        outcome_id: String,
+        side: OrderSide,
+        quantity: Quantity,
+        price: Price,
+        time_in_force: Option<TimeInForce>,
+    },
+    #[serde(rename = "order.partial")]
+    OrderPartial {
+        order_id: OrderId,
+        account_id: AccountId,
+        outcome_id: String,
+        side: OrderSide,
+        quantity: Quantity,
+        price: Price,
+        remaining: Quantity,
+        original_quantity: Quantity,
+        time_in_force: Option<TimeInForce>,
+    },
+    #[serde(rename = "order.filled")]
     OrderFilled {
         order_id: OrderId,
-        // filled_order_id: OrderId,
-        account_id: String,
+        account_id: AccountId,
         outcome_id: String,
         side: OrderSide,
         quantity: Quantity,
         price: Price,
         time_in_force: Option<TimeInForce>,
     },
+    #[serde(rename = "order.cancelled")]
     OrderCancelled {
         order_id: OrderId,
-        account_id: String,
+        account_id: AccountId,
         outcome_id: String,
         side: OrderSide,
         quantity: Quantity,
         price: Price,
         time_in_force: Option<TimeInForce>,
     },
+    #[serde(rename = "order.rejected")]
     OrderRejected {
-        account_id: String,
+        account_id: AccountId,
         outcome_id: String,
         side: OrderSide,
         quantity: Quantity,

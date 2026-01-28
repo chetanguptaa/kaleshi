@@ -3,7 +3,7 @@ import { type Request } from 'express';
 export interface IRequestUser {
   sub: number;
   roles: string[];
-  accountId: string | null;
+  accountId: number | null;
   sid: string;
 }
 

@@ -5,7 +5,7 @@ export type OrderNewEvent = {
   outcome_id: string;
   market_id: number;
   outcome_name: string;
-  account_id: string;
+  account_id: number;
   side: OrderSide;
   order_type: OrderType;
   price: number;
@@ -16,7 +16,7 @@ export type OrderNewEvent = {
 export type OrderPartialEvent = {
   type: 'order.partial';
   order_id: string;
-  account_id: string;
+  account_id: number;
   remaining: number;
   original_quantity: number;
   outcome_id: string;
@@ -28,8 +28,8 @@ export type OrderFilledEvent = {
   fill_id: string;
   buy_order_id: string;
   sell_order_id: string;
-  buyer_account_id: string;
-  seller_account_id: string;
+  buyer_account_id: number;
+  seller_account_id: number;
   market_id: number;
   outcome_id: string;
   price: number;
@@ -39,8 +39,8 @@ export type OrderFilledEvent = {
 
 export type OrderCancelledEvent = {
   type: 'order.cancelled';
-  order_id: string;
-  account_id: string;
+  order_id: number;
+  account_id: number;
   outcome_id: string;
   timestamp: string;
 };

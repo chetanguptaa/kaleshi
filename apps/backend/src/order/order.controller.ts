@@ -61,8 +61,8 @@ export class OrderController {
   }
 
   @Post(':orderId/cancel')
-  async cancel(@Req() req: AppRequest, @Param('orderId') orderId: string) {
+  async cancel(@Req() req: AppRequest, @Param('orderId') orderId: number) {
     const accountId = req.user.accountId!;
-    return await this.orderService.cancelOrder(accountId, orderId);
+    return await this.orderService.cancelOrder(accountId, +orderId);
   }
 }

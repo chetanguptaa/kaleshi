@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::orderbook::OrderBookError;
+
 #[derive(Error, Debug)]
 pub enum EngineError {
     #[error("Order book error: {0}")]
@@ -37,8 +39,8 @@ pub enum EngineError {
     Internal(String),
 }
 
-impl From<rust_order_book::OrderBookError> for EngineError {
-    fn from(err: rust_order_book::OrderBookError) -> Self {
+impl From<OrderBookError> for EngineError {
+    fn from(err: OrderBookError) -> Self {
         EngineError::OrderBook(format!("Code: {}, Message: {}", err.code, err.message))
     }
 }
@@ -111,7 +113,7 @@ impl EngineError {
     }
 
     /// Create an OrderBook error from rust-order-book's OrderBookError with additional context
-    pub fn from_orderbook_error(err: rust_order_book::OrderBookError, context: &str) -> Self {
+    pub fn from_orderbook_error(err: OrderBookError, context: &str) -> Self {
         EngineError::OrderBook(format!(
             "{} - Code: {}, Message: {}",
             context, err.code, err.message

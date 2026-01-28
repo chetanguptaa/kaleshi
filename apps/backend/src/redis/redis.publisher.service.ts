@@ -35,6 +35,21 @@ export class RedisPublisherService {
     }
   }
 
+  async getOrderBook(outcomeId: string) {
+    if (!this.client) return null;
+    const book: string | null = await this.client.get(
+      `fair_price:${outcomeId}`,
+    );
+    if (!book) return null;
+    let fair_price: number | null = null;
+    try {
+      fair_price = parseInt(book);
+    } catch (e) {
+      this.logger.error(`Failed to parse fair price`, e);
+    }
+    return fair_price;
+  }
+
   onModuleDestroy() {
     if (this.client) {
       return this.client.quit();

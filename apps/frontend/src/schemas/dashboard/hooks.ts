@@ -37,7 +37,7 @@ export function useMarketsPrefetch() {
   };
 }
 
-export function useMarketSocket(marketId: number, accountId: string | null) {
+export function useMarketSocket(marketId: number, accountId: number | null) {
   const [isLoading, setIsLoading] = useState(true);
   useEffect(() => {
     let isMounted = true;

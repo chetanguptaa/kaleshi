@@ -188,7 +188,6 @@ async fn process_single_entry(
     entry: &RedisValue,
     view_emitter: &mut ViewEmitter,
 ) -> EngineResult<()> {
-    dbg!("hi there 1000");
     let RedisValue::Bulk(pair) = entry else {
         return Err(EngineError::InvalidMessage(
             "Entry is not a bulk type".to_string(),
@@ -225,8 +224,6 @@ async fn process_single_entry(
     }
 
     let payload = SerdeJsonValue::Object(map);
-
-    dbg!("payload ", &payload);
 
     match handle_message(conn, engine, &payload, view_emitter).await {
         Ok(_) => {
@@ -274,12 +271,10 @@ async fn handle_message(
     payload: &SerdeJsonValue,
     view_emitter: &mut ViewEmitter,
 ) -> EngineResult<()> {
-    dbg!("hi there");
     let msg_type = payload
         .get("type")
         .and_then(|v| v.as_str())
         .ok_or_else(|| EngineError::MissingField("type".to_string()))?;
-    debug!("Handling message of type: {}", msg_type);
     match msg_type {
         "order.new" => handle_new_order(redis_conn, engine, payload, view_emitter).await,
         _ => Err(EngineError::UnknownEventType(msg_type.to_string())),
@@ -297,8 +292,7 @@ async fn handle_new_order(
         serde_json::from_value::<OrderWire>(payload.clone()).map_err(|e| EngineError::Json(e))?;
     let order = Order::try_from(wire)
         .map_err(|e| EngineError::OrderValidation(format!("Order validation failed: {}", e)))?;
-    let (events, orderbook, snapshots) = engine.order_execution(&order);
-    debug!("Order execution generated {} events", events.len());
+    let (publish_events, orderbook, snapshots) = engine.order_execution(redis_conn, &order).await;
     append_events_to_ledger(redis_conn, &snapshots)
         .await
         .map_err(|e| EngineError::Ledger(format!("Failed to append to ledger: {}", e)))?;
@@ -307,5 +301,13 @@ async fn handle_new_order(
         .emit_book_depth(&order.outcome_id, book_depth)
         .await
         .map_err(|e| EngineError::ViewEmission(format!("Failed to emit book depth: {}", e)))?;
+    view_emitter
+        .emit_market_data(&order.market_id, &snapshots)
+        .await
+        .map_err(|e| EngineError::ViewEmission(format!("Failed to emit market data: {}", e)))?;
+    view_emitter
+        .emit_events(publish_events)
+        .await
+        .map_err(|e| EngineError::ViewEmission(format!("Failed to emit events: {}", e)))?;
     Ok(())
 }

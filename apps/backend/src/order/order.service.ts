@@ -15,7 +15,7 @@ export class OrderService {
     private readonly redisPublisherService: RedisPublisherService,
   ) {}
 
-  async placeOrder(accountId: string, body: TCreateOrderSchema) {
+  async placeOrder(accountId: number, body: TCreateOrderSchema) {
     const account = await this.prismaService.account.findUnique({
       where: {
         id: accountId,
@@ -24,10 +24,11 @@ export class OrderService {
     if (!account) {
       throw new BadRequestException('Account does not exist');
     }
+    const scaledPrice = body.price ? Math.round(body.price * 100) : 0;
+    const scaledQuantity = Math.round(body.quantity * 100);
     if (
       body.orderType === 'LIMIT' &&
-      body.price &&
-      account.coins < body.price
+      account.coins < scaledQuantity * scaledPrice
     ) {
       throw new BadRequestException('Not enough balance available');
     }
@@ -39,8 +40,18 @@ export class OrderService {
     if (!outcome) {
       throw new NotFoundException('Outcome does not exist');
     }
-    const orderCost =
-      body.orderType === 'LIMIT' ? body.price! * body.quantity * 100 : 0;
+    let orderCost = 0;
+    if (body.orderType === 'LIMIT') {
+      orderCost = Math.round((scaledPrice * scaledQuantity) / 100);
+    } else if (body.orderType === 'MARKET') {
+      const fairPrice = await this.getOrderBook(body.outcomeId);
+      if (!fairPrice) {
+        throw new BadRequestException(
+          'Fair price not available for this outcome',
+        );
+      }
+      orderCost = Math.round((fairPrice * scaledQuantity) / 100);
+    }
     const available = account.coins - account.reservedCoins;
     if (orderCost > available) {
       throw new BadRequestException('Not enough available balance');
@@ -48,9 +59,7 @@ export class OrderService {
     await this.prismaService.account.update({
       where: { id: accountId },
       data: {
-        reservedCoins: {
-          increment: orderCost,
-        },
+        reservedCoins: { increment: orderCost },
       },
     });
     const eventData: OrderNewEvent = {
@@ -72,7 +81,7 @@ export class OrderService {
     };
   }
 
-  async cancelOrder(accountId: string, orderId: string) {
+  async cancelOrder(accountId: number, orderId: number) {
     const order = await this.prismaService.order.findUnique({
       where: { id: orderId },
     });
@@ -94,5 +103,11 @@ export class OrderService {
       timestamp: new Date().toISOString(),
     });
     return { success: true };
+  }
+
+  private async getOrderBook(outcomeId: string) {
+    const fair_price = await this.redisPublisherService.getOrderBook(outcomeId);
+    if (!fair_price) return null;
+    return fair_price;
   }
 }

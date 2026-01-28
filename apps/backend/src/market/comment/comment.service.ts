@@ -7,7 +7,7 @@ export class CommentService {
   constructor(private readonly prismaService: PrismaService) {}
 
   async addComment(
-    accountId: string,
+    accountId: number,
     marketId: number,
     body: TAddCommentSchema,
   ) {
@@ -25,7 +25,7 @@ export class CommentService {
     };
   }
 
-  async deleteComment(accountId: string, marketId: number, commentId: string) {
+  async deleteComment(accountId: number, marketId: number, commentId: string) {
     const existing = await this.prismaService.comment.findFirst({
       where: {
         id: commentId,
@@ -54,7 +54,7 @@ export class CommentService {
     };
   }
 
-  async commentVote(id: string, accountId: string, body: TCommentVoteSchema) {
+  async commentVote(id: string, accountId: number, body: TCommentVoteSchema) {
     const existing = await this.prismaService.commentVote.findUnique({
       where: { accountId_commentId: { accountId, commentId: id } },
     });

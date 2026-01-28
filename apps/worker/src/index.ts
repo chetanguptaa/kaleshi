@@ -11,6 +11,12 @@ import {
   READ_COUNT,
 } from "./constants";
 import { handleBookDepth } from "./handler/handleBookDepth";
+import { handleOrderCancelled } from "./handler/handleOrderCancelled";
+import { handleOrderFilled } from "./handler/handleOrderFilled";
+import { handleOrderPartial } from "./handler/handleOrderPartial";
+import { handleOrderRejected } from "./handler/handleOrderRejected";
+import { handleTrade } from "./handler/handleTrade";
+import { handleOrderPlaced } from "./handler/handleOrderPlaced";
 
 const redis = createClient({ url: process.env.REDIS_URL! });
 
@@ -41,6 +47,30 @@ async function processMessage(redis: any, id: string, payload: string) {
     switch (event.type) {
       case "book.depth": {
         await handleBookDepth(event);
+        break;
+      }
+      case "order.placed": {
+        await handleOrderPlaced(event);
+        break;
+      }
+      case "order.filled": {
+        await handleOrderFilled(event);
+        break;
+      }
+      case "order.cancelled": {
+        await handleOrderCancelled(event);
+        break;
+      }
+      case "order.partial": {
+        await handleOrderPartial(event);
+        break;
+      }
+      case "order.rejected": {
+        await handleOrderRejected(event);
+        break;
+      }
+      case "trade": {
+        await handleTrade(event);
         break;
       }
     }

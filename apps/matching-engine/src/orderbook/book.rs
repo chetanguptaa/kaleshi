@@ -17,7 +17,8 @@ use crate::orderbook::enums::{JournalOp, OrderOptions, OrderStatus, OrderType, S
 use crate::orderbook::errors::{ErrorType, Result, make_error};
 use crate::orderbook::journal::{JournalLog, Snapshot};
 use crate::orderbook::order::{
-    LimitOrder, LimitOrderOptions, MarketOrder, MarketOrderOptions, OrderId, Price, Quantity,
+    AccountId, LimitOrder, LimitOrderOptions, MarketOrder, MarketOrderOptions, OrderId, Price,
+    Quantity,
 };
 use crate::orderbook::report::{ExecutionReport, ExecutionReportParams, FillReport};
 use crate::orderbook::utils::{current_timestamp_millis, safe_add};
@@ -120,6 +121,7 @@ impl OrderBook {
             time_in_force: None,
             price: None,
             post_only: false,
+            account_id: order.account_id,
         });
 
         let mut fills = Vec::new();
@@ -152,10 +154,16 @@ impl OrderBook {
 
         Ok(report)
     }
-    pub fn market_raw(&mut self, side: Side, quantity: u64) -> Result<ExecutionReport> {
+    pub fn market_raw(
+        &mut self,
+        account_id: AccountId,
+        side: Side,
+        quantity: u64,
+    ) -> Result<ExecutionReport> {
         self.market(MarketOrderOptions {
             side,
             quantity: Quantity(quantity),
+            account_id,
         })
     }
 
@@ -185,6 +193,7 @@ impl OrderBook {
             time_in_force: Some(order.time_in_force),
             price: Some(order.price), // here order price is Some because we have already validated in validate_limit_order
             post_only: order.post_only,
+            account_id: order.account_id,
         });
 
         let mut fills = Vec::new();
@@ -248,6 +257,7 @@ impl OrderBook {
         price: u64,
         time_in_force: Option<TimeInForce>,
         post_only: Option<bool>,
+        account_id: AccountId,
     ) -> Result<ExecutionReport> {
         self.limit(LimitOrderOptions {
             side,
@@ -255,6 +265,7 @@ impl OrderBook {
             price: Price(price),
             time_in_force,
             post_only,
+            account_id,
         })
     }
 
@@ -305,6 +316,7 @@ impl OrderBook {
             post_only: order.post_only,
             fills: Vec::new(),
             log: None,
+            account_id: order.account_id,
         };
 
         if self.journaling {
@@ -369,6 +381,7 @@ impl OrderBook {
                 price: report.price,
                 time_in_force: Some(report.time_in_force),
                 post_only: Some(report.post_only),
+                account_id: report.account_id,
             }),
             (Some(price), None) => self.limit(LimitOrderOptions {
                 side: report.side,
@@ -376,6 +389,7 @@ impl OrderBook {
                 price,
                 time_in_force: Some(report.time_in_force),
                 post_only: Some(report.post_only),
+                account_id: report.account_id,
             }),
             (Some(price), Some(quantity)) => self.limit(LimitOrderOptions {
                 side: report.side,
@@ -383,6 +397,7 @@ impl OrderBook {
                 price,
                 time_in_force: Some(report.time_in_force),
                 post_only: Some(report.post_only),
+                account_id: report.account_id,
             }),
             (None, None) => {
                 // Restore previous journaling value before returning
@@ -674,6 +689,7 @@ impl OrderBook {
                     price: head_order.price,
                     quantity: quantity_left,
                     status: head_order.status,
+                    account_id: head_order.account_id,
                 });
                 orders.insert(head_order.id, head_order);
 
@@ -689,6 +705,7 @@ impl OrderBook {
                     price: head_order.price,
                     quantity: head_order.executed_qty,
                     status: head_order.status,
+                    account_id: head_order.account_id,
                 });
             }
         }

@@ -8,7 +8,7 @@
 
 use crate::orderbook::{
     JournalLog, OrderId, OrderStatus, OrderType, Price, Quantity, Side, TimeInForce,
-    order::get_order_time_in_force,
+    order::{AccountId, get_order_time_in_force},
 };
 
 /// A report for an individual fill that occurred during order execution.
@@ -26,6 +26,7 @@ pub struct FillReport {
     pub order_id: OrderId,
     pub price: Price,
     pub quantity: Quantity,
+    pub account_id: AccountId,
     pub status: OrderStatus,
 }
 
@@ -39,6 +40,7 @@ pub(crate) struct ExecutionReportParams {
     pub time_in_force: Option<TimeInForce>,
     pub price: Option<Price>,
     pub post_only: bool,
+    pub account_id: AccountId,
 }
 
 /// A comprehensive report describing the result of a submitted order.
@@ -77,6 +79,7 @@ pub struct ExecutionReport {
     pub post_only: bool,
     pub fills: Vec<FillReport>,
     pub log: Option<JournalLog>,
+    pub account_id: AccountId,
 }
 
 impl ExecutionReport {
@@ -114,6 +117,7 @@ impl ExecutionReport {
             post_only: params.post_only,
             fills: Vec::new(),
             log: None,
+            account_id: params.account_id,
         }
     }
 }

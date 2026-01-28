@@ -1,10 +1,12 @@
-use crate::error::EngineResult;
+use crate::{
+    error::EngineResult,
+    orderbook::{Price, Snapshot},
+};
 use redis::AsyncCommands;
-use rust_order_book::Snapshot;
 
 pub async fn append_events_to_ledger(
     redis: &mut redis::aio::Connection,
-    events: &Vec<(String, Snapshot)>,
+    events: &Vec<(String, Option<Price>, Snapshot)>,
 ) -> EngineResult<()> {
     let _: String = redis
         .xadd(

@@ -24,6 +24,9 @@ impl AddAssign<u64> for OrderId {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
+pub struct AccountId(pub u64);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct Price(pub u64);
 impl Price {
     pub fn value(self) -> u64 {
@@ -98,12 +101,14 @@ impl Sum for Quantity {
 pub struct MarketOrderOptions {
     pub side: Side,
     pub quantity: Quantity,
+    pub account_id: AccountId,
 }
 impl MarketOrderOptions {
-    pub fn new(side: Side, quantity: u64) -> Self {
+    pub fn new(side: Side, quantity: u64, account_id: AccountId) -> Self {
         Self {
             side,
             quantity: Quantity(quantity),
+            account_id,
         }
     }
 }
@@ -115,6 +120,7 @@ pub(crate) struct MarketOrder {
     pub(crate) orig_qty: Quantity,
     pub(crate) executed_qty: Quantity,
     pub(crate) status: OrderStatus,
+    pub(crate) account_id: AccountId,
 }
 
 impl MarketOrder {
@@ -125,6 +131,7 @@ impl MarketOrder {
             orig_qty: options.quantity,
             executed_qty: Quantity(0),
             status: OrderStatus::New,
+            account_id: options.account_id,
         }
     }
     pub(crate) fn remaining_qty(&self) -> Quantity {
@@ -150,6 +157,7 @@ pub struct LimitOrderOptions {
     pub price: Price,
     pub time_in_force: Option<TimeInForce>,
     pub post_only: Option<bool>,
+    pub account_id: AccountId,
 }
 impl LimitOrderOptions {
     pub fn new(
@@ -158,6 +166,7 @@ impl LimitOrderOptions {
         price: u64,
         time_in_force: Option<TimeInForce>,
         post_only: Option<bool>,
+        account_id: AccountId,
     ) -> Self {
         Self {
             side,
@@ -165,6 +174,7 @@ impl LimitOrderOptions {
             price: Price(price),
             time_in_force,
             post_only,
+            account_id,
         }
     }
 }
@@ -189,6 +199,7 @@ pub struct LimitOrder {
     pub(crate) taker_qty: Quantity,
     pub(crate) maker_qty: Quantity,
     pub(crate) status: OrderStatus,
+    pub(crate) account_id: AccountId,
 }
 
 impl LimitOrder {
@@ -206,6 +217,7 @@ impl LimitOrder {
             taker_qty: Quantity(0),
             maker_qty: Quantity(0),
             status: OrderStatus::New,
+            account_id: options.account_id,
         }
     }
 
