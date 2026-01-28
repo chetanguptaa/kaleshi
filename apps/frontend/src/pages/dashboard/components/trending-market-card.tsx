@@ -14,7 +14,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useSocketEvent } from "@/hooks/use-socket-event";
-import { useMarketById, useMarketSocket } from "@/schemas/dashboard/hooks";
+import {
+  useAccountSocket,
+  useMarketById,
+  useMarketSocket,
+  useOutcomeSocket,
+} from "@/schemas/dashboard/hooks";
 import { TOutcomeSchema } from "@/schemas/dashboard/schema";
 import { TCurrentUser } from "@/schemas/layout/schema";
 import { useCreateOrder } from "@/schemas/orders/hooks";
@@ -25,6 +30,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { MAX_OUTCOMES_VISIBLE } from "../constants";
 import { getMostUpvotedComment, IOutcome, timeAgo } from "../utils";
+import { DecimalInput } from "@/components/common/decimal-input";
 
 const TrendingMarketCard = ({
   id,
@@ -34,7 +40,8 @@ const TrendingMarketCard = ({
   currentUser: TCurrentUser | null;
 }) => {
   const trendingMarket = useMarketById(id);
-  const marketSocket = useMarketSocket(id, currentUser.accountId);
+  const accountSocket = useAccountSocket(currentUser?.accountId || null);
+  const marketSocket = useMarketSocket(id);
   const { mutate, isPending } = useCreateOrder();
   const [selectedOutcome, setSelectedOutcome] = useState<TOutcomeSchema | null>(
     null,
@@ -63,13 +70,14 @@ const TrendingMarketCard = ({
       { totalVolume: 0, totalNotional: 0 },
     );
   }, [outcomesWS]);
+  const outcomeSocket = useOutcomeSocket(selectedOutcome?.id);
   useSocketEvent<{
     market_id: number;
     outcomes: IOutcome[];
     timestamp: number;
   }>("market.data", (payload) => {
     if (payload.market_id !== id) return;
-    setOutcomesWS(payload?.outcomes);
+    setOutcomesWS(payload?.outcomes || []);
   });
 
   let mostUpvotedComment = getMostUpvotedComment(
@@ -120,7 +128,7 @@ const TrendingMarketCard = ({
     );
   };
 
-  if (trendingMarket.isLoading || marketSocket.isSocketLoading) {
+  if (trendingMarket.isLoading) {
     return <Loading />;
   }
 
@@ -244,12 +252,10 @@ const TrendingMarketCard = ({
                   <label className="text-sm text-muted-foreground">
                     Limit price (¢)
                   </label>
-                  <input
-                    type="number"
-                    className="w-full rounded-md border p-2"
-                    min={0.01}
+                  <DecimalInput
                     value={limitPrice}
-                    onChange={(e) => setLimitPrice(Number(e.target.value))}
+                    onValueChange={setLimitPrice}
+                    min={0.01}
                   />
                 </div>
               )}
@@ -257,12 +263,10 @@ const TrendingMarketCard = ({
                 <label className="text-sm text-muted-foreground">
                   Quantity
                 </label>
-                <input
-                  type="number"
-                  className="w-full rounded-md border p-2"
-                  min={0.01}
+                <DecimalInput
                   value={quantity}
-                  onChange={(e) => setQuantity(Number(e.target.value))}
+                  onValueChange={setQuantity}
+                  min={0.01}
                 />
               </div>
 

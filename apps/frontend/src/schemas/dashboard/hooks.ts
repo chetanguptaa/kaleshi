@@ -8,7 +8,12 @@ import { useApiQuery } from "@/hooks/use-api-query";
 import { TMarketSelection } from "./schema";
 import { queryClient } from "@/query/query-client";
 import { useEffect, useState } from "react";
-import { socketService } from "@/services/socket";
+import {
+  AccountId,
+  MarketId,
+  OutcomeId,
+  socketService,
+} from "@/services/socket";
 
 export const useMarketCategories = () => {
   return useApiQuery(["marketCategories"], getMarketCategories);
@@ -37,24 +42,32 @@ export function useMarketsPrefetch() {
   };
 }
 
-export function useMarketSocket(marketId: number, accountId: number | null) {
-  const [isLoading, setIsLoading] = useState(true);
+export function useAccountSocket(accountId?: AccountId) {
   useEffect(() => {
-    let isMounted = true;
-    socketService
-      .subscribeToMarket(marketId, accountId)
-      .then(() => {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setIsLoading(false);
-      });
+    if (!accountId) return;
+    socketService.registerAccount(accountId);
     return () => {
-      isMounted = false;
-      socketService.unsubscribeFromMarket(marketId, accountId);
+      socketService.unregisterAccount(accountId);
+    };
+  }, [accountId]);
+}
+
+export function useMarketSocket(marketId?: MarketId) {
+  useEffect(() => {
+    if (!marketId) return;
+    socketService.subscribeToMarket(marketId);
+    return () => {
+      socketService.unsubscribeFromMarket(marketId);
     };
   }, [marketId]);
-  return { isSocketLoading: isLoading };
+}
+
+export function useOutcomeSocket(outcomeId?: OutcomeId) {
+  useEffect(() => {
+    if (!outcomeId) return;
+    socketService.subscribeToOutcome(outcomeId);
+    return () => {
+      socketService.unsubscribeFromOutcome(outcomeId);
+    };
+  }, [outcomeId]);
 }

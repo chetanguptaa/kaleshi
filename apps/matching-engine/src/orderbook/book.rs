@@ -82,7 +82,7 @@ impl OrderBook {
         Self {
             symbol: symbol.to_string(),
             last_op: 0,
-            next_order_id: OrderId(0),
+            next_order_id: OrderId(1),
             orders: HashMap::with_capacity(100_000),
             asks: BTreeMap::new(),
             bids: BTreeMap::new(),

@@ -25,7 +25,7 @@ export function MarketCard({ market }: { market: TMarket }) {
           </span>
         </div>
         <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-          {market.information?.description}
+          {"No description provided"}
         </p>
         <div className="space-y-3">
           {market.outcomes.slice(0, 3).map((outcome) => (
@@ -59,9 +59,7 @@ export function MarketCard({ market }: { market: TMarket }) {
 
         <div className="mt-4 pt-4 border-t border-border/50 flex items-center justify-between">
           <span className="text-xs text-muted-foreground">Volume</span>
-          <span className="text-sm font-medium text-accent">
-            {formatVolume(market.volume)}
-          </span>
+          <span className="text-sm font-medium text-accent">{1000}</span>
         </div>
       </div>
     </Link>

@@ -1,3 +1,4 @@
+import { OrderSide } from "generated/prisma/enums";
 import { prisma } from "../prisma";
 import { TradeEvent } from "../types/index";
 

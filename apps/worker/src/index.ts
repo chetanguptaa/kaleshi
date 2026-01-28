@@ -44,6 +44,7 @@ async function processMessage(redis: any, id: string, payload: string) {
     return;
   }
   try {
+    console.log("event type ", event.type);
     switch (event.type) {
       case "book.depth": {
         await handleBookDepth(event);

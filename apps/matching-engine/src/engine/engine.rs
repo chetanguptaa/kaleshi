@@ -9,7 +9,6 @@ use crate::orderbook::{
 use redis::aio::Connection;
 use redis::{AsyncCommands, RedisError};
 use std::collections::HashMap;
-use std::env::consts::FAMILY;
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
@@ -86,22 +85,6 @@ impl MatchingEngine {
                 });
             }
             OrderStatus::Filled | OrderStatus::PartiallyFilled => {
-                for fill in &execution_report.fills {
-                    events.push(PublishEngineEvent::Trade {
-                        trade_id: Uuid::new_v4().to_string(),
-                        account_id: AccountId(order.account_id),
-                        outcome_id: order.outcome_id.clone(),
-                        order_id: execution_report.order_id,
-                        filled_order_id: fill.order_id,
-                        filled_account_id: fill.account_id,
-                        price: Price(fill.price.0),
-                        quantity: Quantity(fill.quantity.0),
-                        side: order.side.clone().into(),
-                        remaining: Quantity(order.qty_remaining),
-                        original_quantity: Quantity(order.qty_original),
-                        time_in_force: Some(execution_report.time_in_force),
-                    });
-                }
                 if execution_report.status == OrderStatus::Filled {
                     events.push(PublishEngineEvent::OrderFilled {
                         order_id: execution_report.order_id,
@@ -123,6 +106,22 @@ impl MatchingEngine {
                         quantity: Quantity(order.qty_original),
                         remaining: execution_report.remaining_qty,
                         original_quantity: execution_report.orig_qty,
+                    });
+                }
+                for fill in &execution_report.fills {
+                    events.push(PublishEngineEvent::Trade {
+                        trade_id: Uuid::new_v4().to_string(),
+                        account_id: AccountId(order.account_id),
+                        outcome_id: order.outcome_id.clone(),
+                        order_id: execution_report.order_id,
+                        filled_order_id: fill.order_id,
+                        filled_account_id: fill.account_id,
+                        price: Price(fill.price.0),
+                        quantity: Quantity(fill.quantity.0),
+                        side: order.side.clone().into(),
+                        remaining: Quantity(order.qty_remaining),
+                        original_quantity: Quantity(order.qty_original),
+                        time_in_force: Some(execution_report.time_in_force),
                     });
                 }
             }
@@ -187,12 +186,15 @@ impl MatchingEngine {
     }
 
     async fn create_snapshots(
-        &self,
+        &mut self,
         redis: &mut Connection,
     ) -> Vec<(String, Option<Price>, Snapshot)> {
         let mut snapshots = Vec::new();
         for (outcome_id, book) in &self.books {
             let fair_price = Self::compute_fair_price(redis, book).await;
+            if let Some(price) = fair_price {
+                self.fair_prices.insert(outcome_id.clone(), price);
+            }
             let snapshot = book.snapshot();
             snapshots.push((outcome_id.clone(), fair_price, snapshot));
         }
@@ -248,13 +250,7 @@ impl MatchingEngine {
     }
 
     async fn compute_fair_price(redis: &mut Connection, book: &OrderBook) -> Option<Price> {
-        let depth = book.depth(Some(1));
-        let best_bid = depth.bids.first().map(|l| l.0);
-        let best_ask = depth.asks.first().map(|l| l.0);
-        let fair_price = match (best_bid, best_ask) {
-            (Some(bid), Some(ask)) => Some(Price((bid.0 + ask.0) / 2)),
-            _ => None,
-        };
+        let fair_price = book.mid_price();
         if let Some(price) = fair_price {
             let _: Result<String, RedisError> = redis
                 .set(format!("fair_price:{}", book.symbol()), price.0.to_string())

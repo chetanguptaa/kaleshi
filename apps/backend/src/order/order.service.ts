@@ -70,9 +70,9 @@ export class OrderService {
       account_id: accountId,
       side: body.side,
       order_type: body.orderType,
-      price: body.price ?? 0,
-      qty_remaining: body.quantity,
-      qty_original: body.quantity,
+      price: scaledPrice ?? 0,
+      qty_remaining: scaledQuantity,
+      qty_original: scaledQuantity,
     };
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {

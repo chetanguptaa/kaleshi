@@ -32,6 +32,7 @@ pub async fn replay_ledger(
                         ));
                     }
                 };
+                dbg!(&payload);
                 let snapshots: Vec<(String, Snapshot)> = serde_json::from_str(payload)?;
                 engine.apply_snapshots(snapshots).map_err(|e| {
                     EngineError::Snapshot(format!("failed to apply snapshots from ledger: {}", e))

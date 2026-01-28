@@ -38,6 +38,8 @@ export default function DashboardPage() {
     ? markets.data.markets[0]
     : null;
 
+  console.log("markets ", markets.data);
+
   if (
     marketCategories.isLoading ||
     markets.isLoading ||
