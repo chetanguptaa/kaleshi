@@ -63,7 +63,11 @@ const buildChartData = (
   historyData: {
     outcomeId: string;
     outcomeName: string;
-    history: { time: string; totalVolume: number; fairPrice?: number }[];
+    history: {
+      time: string;
+      totalVolume: number;
+      fairPrice?: number;
+    }[];
   }[],
   outcomeNameById: Record<string, string>,
 ) => {
@@ -79,7 +83,7 @@ const buildChartData = (
         });
       }
       rowsByTime.get(point.time)[outcomeName.replace(" ", "")] =
-        point.fairPrice !== null ? Math.round(point.fairPrice * 100) : null;
+        point.fairPrice !== null ? Math.round(point.fairPrice) : null;
     }
   }
   return Array.from(rowsByTime.values()).sort(
@@ -126,17 +130,6 @@ const TrendingMarketCard = ({
     return map;
   }, [outcomes]);
 
-  const chartData = useMemo(() => {
-    if (!marketDataHistory.isSuccess) return [];
-    if (
-      !marketDataHistory?.data ||
-      !marketDataHistory?.data?.data ||
-      !outcomes.length
-    )
-      return [];
-    return buildChartData(marketDataHistory?.data?.data, outcomeNameById);
-  }, [marketDataHistory, outcomeNameById]);
-
   const timerText = useMarketTimer(
     trendingMarket?.data?.market?.startsAt,
     trendingMarket?.data?.market?.endsAt,
@@ -154,14 +147,19 @@ const TrendingMarketCard = ({
             ...outcome.history,
             {
               time: new Date(event.timestamp).toISOString(),
-              fairPrice: tick.fairPrice,
-              totalVolume: tick.totalVolume,
+              fairPrice: Math.round((tick.fairPrice * 100) / 100),
+              totalVolume: Math.round((tick.totalVolume * 100) / 100),
             },
           ],
         };
       }),
     );
   });
+
+  const chartData = useMemo(() => {
+    if (!liveMarketHistory.length) return [];
+    return buildChartData(liveMarketHistory, outcomeNameById);
+  }, [liveMarketHistory, outcomeNameById]);
 
   useEffect(() => {
     if (!marketDataHistory.isSuccess) return;
@@ -175,7 +173,7 @@ const TrendingMarketCard = ({
     outcomes.forEach((outcome) => {
       totalVolume += outcome.totalVolume;
     });
-    setTotalVolume(totalVolume);
+    setTotalVolume(Math.round((totalVolume * 100) / 100));
     setOutcomes(outcomes);
   }, [marketData]);
 
@@ -290,7 +288,7 @@ const TrendingMarketCard = ({
                 <div className="flex justify-center items-center gap-2 text-green-500">
                   $
                   <span className="text-muted-foreground text-sm">
-                    Total Volume: {totalVolume ?? 0}
+                    Total Volume: {totalVolume ? totalVolume / 100 : 0}
                   </span>
                 </div>
                 {mostUpvotedComment && (
@@ -314,9 +312,11 @@ const TrendingMarketCard = ({
               data={chartData}
               outcomes={outcomes.map((o) => ({
                 name: o.outcomeName,
-                percentage: o.fairPrice ? Math.round(o.fairPrice * 100) : 0,
+                percentage: o.fairPrice ? Math.round(o.fairPrice) : 0,
                 color:
-                  o.fairPrice && o.fairPrice > 0.5 ? "positive" : "negative",
+                  o.fairPrice && Math.round(o.fairPrice / 100) > 0.5
+                    ? "positive"
+                    : "negative",
               }))}
               currentTimestamp={new Date().toLocaleString()}
             />

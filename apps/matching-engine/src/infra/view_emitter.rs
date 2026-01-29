@@ -36,7 +36,7 @@ impl ViewEmitter {
     pub async fn emit_market_data(
         &mut self,
         market_id: &u32,
-        snapshots: &Vec<(String, Option<Price>, u64, Snapshot)>,
+        snapshots: &Vec<(String, Option<Price>, Price, Snapshot)>,
     ) -> EngineResult<()> {
         let current_fair_price_and_total_volume: Vec<serde_json::Value> = snapshots
             .iter()

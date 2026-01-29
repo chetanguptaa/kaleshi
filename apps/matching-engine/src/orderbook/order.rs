@@ -7,7 +7,7 @@
 use serde::{Deserialize, Serialize};
 use std::{
     iter::Sum,
-    ops::{Add, AddAssign, Div, Sub},
+    ops::{Add, AddAssign, Div, Mul, Sub},
 };
 
 use crate::orderbook::{
@@ -49,6 +49,14 @@ impl Sub for Price {
     }
 }
 
+impl Mul<Quantity> for Price {
+    type Output = Price;
+
+    fn mul(self, rhs: Quantity) -> Price {
+        Price(self.0.saturating_mul(rhs.0))
+    }
+}
+
 impl Div for Price {
     type Output = Price;
 
@@ -86,6 +94,14 @@ impl AddAssign<u64> for Quantity {
 impl Sum for Quantity {
     fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
         Quantity(iter.map(|q| q.0).sum())
+    }
+}
+
+impl Mul<Price> for Quantity {
+    type Output = Price;
+
+    fn mul(self, rhs: Price) -> Price {
+        Price(self.0.saturating_mul(rhs.0))
     }
 }
 

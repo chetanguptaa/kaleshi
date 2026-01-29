@@ -15,7 +15,7 @@ use uuid::Uuid;
 pub struct MatchingEngine {
     pub books: HashMap<String, OrderBook>,
     pub fair_prices: HashMap<String, Price>,
-    pub total_outcome_volumes: HashMap<String, u64>, // outcomeId -> u64
+    pub total_outcome_volumes: HashMap<String, Price>, // outcomeId -> u64
 }
 
 impl MatchingEngine {
@@ -44,7 +44,7 @@ impl MatchingEngine {
     ) -> (
         Vec<PublishEngineEvent>,
         &OrderBook,
-        Vec<(String, Option<Price>, u64, Snapshot)>,
+        Vec<(String, Option<Price>, Price, Snapshot)>,
     ) {
         let mut events = Vec::new();
         let execution_result = self.execute_order_on_book(order);
@@ -62,7 +62,7 @@ impl MatchingEngine {
                 let total_volume = self
                     .total_outcome_volumes
                     .get(&order.outcome_id)
-                    .unwrap_or(&0);
+                    .unwrap_or(&Price(0));
                 let snapshots = self.create_snapshots(redis, total_volume.clone()).await;
                 if let Some(book) = self.books.get(&order.outcome_id) {
                     if let Some(fair_price) = Self::compute_fair_price(redis, book).await {
@@ -76,8 +76,12 @@ impl MatchingEngine {
         };
 
         let outcome_id = order.outcome_id.clone();
-        let total_volume = self.total_outcome_volumes.get(&outcome_id).unwrap_or(&0);
-        let new_total_volume = total_volume + order.qty_original - order.qty_remaining;
+        let total_volume = self
+            .total_outcome_volumes
+            .get(&outcome_id)
+            .unwrap_or(&Price(0));
+        let new_total_volume =
+            total_volume.clone() + execution_report.executed_qty * execution_report.price;
         self.total_outcome_volumes
             .insert(outcome_id.clone(), new_total_volume);
 
@@ -158,7 +162,7 @@ impl MatchingEngine {
             }
         }
 
-        let snapshots = self.create_snapshots(redis, new_total_volume).await;
+        let snapshots = self.create_snapshots(redis, new_total_volume.clone()).await;
         let book = self.books.get(&order.outcome_id).unwrap();
         (events, book, snapshots)
     }
@@ -198,8 +202,8 @@ impl MatchingEngine {
     async fn create_snapshots(
         &mut self,
         redis: &mut Connection,
-        new_total_volume: u64,
-    ) -> Vec<(String, Option<Price>, u64, Snapshot)> {
+        new_total_volume: Price,
+    ) -> Vec<(String, Option<Price>, Price, Snapshot)> {
         let mut snapshots = Vec::new();
         for (outcome_id, book) in &self.books {
             let fair_price = Self::compute_fair_price(redis, book).await;

@@ -15,7 +15,7 @@ const OutcomeButton = ({
   variant,
   onClick,
 }: OutcomeButtonProps) => {
-  const priceInCents = Math.round(price * 100);
+  const priceInCents = price;
 
   return (
     <div className="flex flex-col items-center gap-2">

@@ -4,6 +4,7 @@ import { TCreateMarketSchema } from './market.controller';
 import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
 import { ROLES } from 'src/constants';
 import { TimeseriesService } from 'src/timeseries/timeseries.service';
+import { QueryResultRow } from 'pg';
 
 @Injectable()
 export class MarketService {
@@ -252,7 +253,7 @@ export class MarketService {
       name: string;
     }[],
   ) {
-    if (outcomes.length === 0) return [];
+    if (!outcomes.length) return [];
     const sql = `
       SELECT DISTINCT ON (outcome_id)
         outcome_id,
@@ -265,19 +266,26 @@ export class MarketService {
     const { rows } = await this.timeseriesService.query(sql, [
       outcomes.map((o) => o.id),
     ]);
-    if (!rows.length) {
-      return outcomes.map((oi) => ({
+    const rowByOutcomeId = new Map<string, QueryResultRow>();
+    for (const row of rows) {
+      rowByOutcomeId.set(row.outcome_id as string, row);
+    }
+    return outcomes.map((oi) => {
+      const row = rowByOutcomeId.get(oi.id);
+      if (!row) {
+        return {
+          outcomeId: oi.id,
+          outcomeName: oi.name,
+          fairPrice: null,
+          totalVolume: 0,
+        };
+      }
+      return {
         outcomeId: oi.id,
         outcomeName: oi.name,
-        fairPrice: null,
-        totalVolume: 0,
-      }));
-    }
-    return rows.map((row) => ({
-      outcomeId: row.outcome_id as string,
-      outcomeName: outcomes.find((o) => o.id === row.outcome_id)?.name || '',
-      fairPrice: Number(row.fair_price),
-      totalVolume: Number(row.total_volume),
-    }));
+        fairPrice: Number(row.fair_price! as number),
+        totalVolume: Number(row.total_volume! as number),
+      };
+    });
   }
 }
