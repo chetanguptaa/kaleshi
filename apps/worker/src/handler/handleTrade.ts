@@ -4,6 +4,18 @@ import { TradeEvent } from "../types/index";
 
 export async function handleTrade(event: TradeEvent) {
   await prisma.$transaction(async (tx) => {
+    await tx.order.update({
+      where: { id: event.order_id },
+      data: {
+        status: "FILLED",
+      },
+    });
+    await tx.order.update({
+      where: { id: event.filled_order_id },
+      data: {
+        status: "FILLED",
+      },
+    });
     await tx.fill.create({
       data: {
         orderId: event.order_id,
@@ -15,7 +27,7 @@ export async function handleTrade(event: TradeEvent) {
         quantity: event.quantity,
       },
     });
-    const tradeCost = event.price * event.quantity * 100;
+    const tradeCost = Math.round((event.price * event.quantity) / 100);
     await tx.account.update({
       where: { id: event.account_id },
       data: {

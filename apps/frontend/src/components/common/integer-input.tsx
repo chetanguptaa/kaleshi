@@ -1,25 +1,25 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 
-type DecimalInputProps = {
+type IntegerInputProps = {
   value: number;
   onValueChange: (value: number) => void;
   min?: number;
   max?: number;
 };
 
-export function DecimalInput({
+export function IntegerInput({
   value,
   onValueChange,
-  min = 0.01,
-  max = 1,
-}: DecimalInputProps) {
+  min = 1,
+  max,
+}: IntegerInputProps) {
   const [display, setDisplay] = React.useState<string | null>(
-    value?.toFixed(2) || null,
+    value != null ? String(value) : null,
   );
 
   React.useEffect(() => {
-    setDisplay(value?.toFixed(2) || null);
+    setDisplay(value != null ? String(value) : null);
   }, [value]);
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -31,17 +31,16 @@ export function DecimalInput({
       return;
     }
 
-    // Digits with up to 2 decimals
-    if (!/^\d*\.?\d{0,2}$/.test(val)) return;
+    // Digits only
+    if (!/^\d+$/.test(val)) return;
 
     const num = Number(val);
-    if (!Number.isNaN(num) && num > max) return; // HARD CAP
+
+    // HARD CAP if max is provided
+    if (max !== undefined && num > max) return;
 
     setDisplay(val);
-
-    if (!Number.isNaN(num)) {
-      onValueChange(num);
-    }
+    onValueChange(num);
   }
 
   function handleBlur() {
@@ -51,18 +50,18 @@ export function DecimalInput({
       num = min;
     }
 
-    if (num > max) {
+    if (max !== undefined && num > max) {
       num = max;
     }
 
     onValueChange(num);
-    setDisplay(num.toFixed(2));
+    setDisplay(String(num));
   }
 
   return (
     <Input
-      placeholder="0.01"
-      inputMode="decimal"
+      placeholder={String(min)}
+      inputMode="numeric"
       value={display}
       onChange={handleChange}
       onBlur={handleBlur}

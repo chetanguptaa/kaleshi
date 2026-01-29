@@ -6,7 +6,7 @@ import {
 import { PrismaService } from 'src/prisma.service';
 import { TCreateOrderSchema } from './order.controller';
 import { RedisPublisherService } from 'src/redis/redis.publisher.service';
-import { OrderNewEvent } from 'src/redis/redis.event-types';
+import { OrderNewEvent } from 'src/redis/redis-publisher.event-types';
 
 @Injectable()
 export class OrderService {
@@ -28,7 +28,7 @@ export class OrderService {
     const scaledQuantity = Math.round(body.quantity * 100);
     if (
       body.orderType === 'LIMIT' &&
-      account.coins < scaledQuantity * scaledPrice
+      account.coins < Math.round((scaledQuantity * scaledPrice) / 100)
     ) {
       throw new BadRequestException('Not enough balance available');
     }
@@ -44,7 +44,7 @@ export class OrderService {
     if (body.orderType === 'LIMIT') {
       orderCost = Math.round((scaledPrice * scaledQuantity) / 100);
     } else if (body.orderType === 'MARKET') {
-      const fairPrice = await this.getOrderBook(body.outcomeId);
+      const fairPrice = await this.getFairPrice(body.outcomeId);
       if (!fairPrice) {
         throw new BadRequestException(
           'Fair price not available for this outcome',
@@ -105,7 +105,7 @@ export class OrderService {
     return { success: true };
   }
 
-  private async getOrderBook(outcomeId: string) {
+  private async getFairPrice(outcomeId: string) {
     const fair_price = await this.redisPublisherService.getOrderBook(outcomeId);
     if (!fair_price) return null;
     return fair_price;

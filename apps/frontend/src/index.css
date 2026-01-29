@@ -31,6 +31,18 @@
     --chart-3: 197 37% 24%;
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
+
+    /* Betting specific colors */
+    --bet-positive: 160 84% 39%;
+    --bet-positive-foreground: 0 0% 100%;
+    --bet-negative: 220 13% 18%;
+    --bet-negative-foreground: 0 0% 100%;
+    --bet-neutral: 220 9% 70%;
+
+    /* Chart colors */
+    --chart-positive: 160 84% 39%;
+    --chart-negative: 220 9% 70%;
+    --chart-grid: 220 13% 91%;
   }
 
   .dark {
@@ -58,6 +70,16 @@
     --chart-3: 30 80% 55%;
     --chart-4: 280 65% 60%;
     --chart-5: 340 75% 55%;
+
+    --bet-positive: 160 84% 39%;
+    --bet-positive-foreground: 0 0% 100%;
+    --bet-negative: 220 9% 85%;
+    --bet-negative-foreground: 220 13% 13%;
+    --bet-neutral: 220 9% 50%;
+
+    --chart-positive: 160 84% 45%;
+    --chart-negative: 220 9% 50%;
+    --chart-grid: 220 13% 20%;
   }
 }
 

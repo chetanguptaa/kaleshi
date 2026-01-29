@@ -6,6 +6,15 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import {
+  BookDepthEvent,
+  MarketDataEvent,
+  OrderCancelledEvent,
+  OrderFilledEvent,
+  OrderPartialEvent,
+  OrderPlacedEvent,
+  OrderRejectedEvent,
+} from 'src/redis/redis-subscriber.event-types';
 
 @WebSocketGateway({
   cors: {
@@ -118,30 +127,37 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     return;
   }
 
-  broadcastDepth(outcomeId: string, payload: any) {
+  broadcastDepth(outcomeId: string, payload: BookDepthEvent) {
     const listeners = this.subscribersByOutcome.get(outcomeId);
     if (!listeners) return;
     for (const client of listeners) client.emit('book.depth', payload);
   }
 
-  broadcastMarketData(marketId: number, payload: any) {
+  broadcastMarketData(marketId: number, payload: MarketDataEvent) {
     const listeners = this.subscribersByMarket.get(marketId);
     if (!listeners) return;
     for (const client of listeners) client.emit('market.data', payload);
   }
 
   // PRIVATE broadcast on orders
-  broadcastOrderPartial(accountId: number, payload: any) {
+  broadcastOrderPartial(accountId: number, payload: OrderPartialEvent) {
     const client = this.clientsByAccount.get(accountId);
     client?.emit('order.partial', payload);
   }
 
-  broadcastFill(buyerId: number, sellerId: number, payload: any) {
-    this.clientsByAccount.get(buyerId)?.emit('order.filled', payload);
-    this.clientsByAccount.get(sellerId)?.emit('order.filled', payload);
+  broadcastFill(accountId: number, payload: OrderFilledEvent) {
+    this.clientsByAccount.get(accountId)?.emit('order.filled', payload);
   }
 
-  broadcastCancel(accountId: number, payload: any) {
+  broadcastCancel(accountId: number, payload: OrderCancelledEvent) {
     this.clientsByAccount.get(accountId)?.emit('order.cancelled', payload);
+  }
+
+  broadcastOrderRejected(accountId: number, payload: OrderRejectedEvent) {
+    this.clientsByAccount.get(accountId)?.emit('order.rejected', payload);
+  }
+
+  broadcastOrderPlaced(accountId: number, payload: OrderPlacedEvent) {
+    this.clientsByAccount.get(accountId)?.emit('order.placed', payload);
   }
 }

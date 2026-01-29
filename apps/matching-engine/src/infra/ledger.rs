@@ -6,11 +6,11 @@ use redis::AsyncCommands;
 
 pub async fn append_events_to_ledger(
     redis: &mut redis::aio::Connection,
-    events: &Vec<(String, Option<Price>, Snapshot)>,
+    events: &Vec<(String, Option<Price>, u64, Snapshot)>,
 ) -> EngineResult<()> {
-    let snapshot: Vec<Snapshot> = events
+    let snapshot: Vec<(String, Snapshot)> = events
         .iter()
-        .map(|(_, _, snapshot)| snapshot.clone())
+        .map(|(outcome_id, _, _, snapshot)| (outcome_id.clone(), snapshot.clone()))
         .collect();
     let _: String = redis
         .xadd(

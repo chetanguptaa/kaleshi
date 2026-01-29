@@ -29,7 +29,7 @@ export async function handleOrderFilled(event: OrderFilledEvent) {
       where: { id: account_id },
       data: {
         reservedCoins: {
-          decrement: order.price * order.quantity * 100,
+          decrement: Math.round((order.price * order.quantity) / 100),
         },
       },
     });

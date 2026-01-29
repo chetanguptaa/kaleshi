@@ -78,6 +78,18 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+        bet: {
+          positive: "hsl(var(--bet-positive))",
+          "positive-foreground": "hsl(var(--bet-positive-foreground))",
+          negative: "hsl(var(--bet-negative))",
+          "negative-foreground": "hsl(var(--bet-negative-foreground))",
+          neutral: "hsl(var(--bet-neutral))",
+        },
+        betChart: {
+          positive: "hsl(var(--chart-positive))",
+          negative: "hsl(var(--chart-negative))",
+          grid: "hsl(var(--chart-grid))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",

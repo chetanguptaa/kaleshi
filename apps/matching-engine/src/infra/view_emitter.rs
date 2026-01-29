@@ -36,21 +36,23 @@ impl ViewEmitter {
     pub async fn emit_market_data(
         &mut self,
         market_id: &u32,
-        snapshots: &Vec<(String, Option<Price>, Snapshot)>,
+        snapshots: &Vec<(String, Option<Price>, u64, Snapshot)>,
     ) -> EngineResult<()> {
-        let current_fair_price: Vec<serde_json::Value> = snapshots
+        let current_fair_price_and_total_volume: Vec<serde_json::Value> = snapshots
             .iter()
-            .map(|(outcome_id, fair_price, _)| {
+            .map(|(outcome_id, fair_price, total_volume, _)| {
                 json!({
-                    "outcome_id": outcome_id,
-                    "fair_price": fair_price,
+                    "outcomeId": outcome_id,
+                    "fairPrice": fair_price,
+                    "totalVolume": total_volume,
                 })
             })
             .collect();
         let event = json!({
             "type": "market.data",
-            "market_id": market_id,
-            "current_fair_price": current_fair_price,
+            "marketId": market_id,
+            "data": current_fair_price_and_total_volume,
+            "timestamp": chrono::Utc::now().timestamp_millis(),
         });
         let payload = serde_json::to_string(&event)?;
         let _: String = self

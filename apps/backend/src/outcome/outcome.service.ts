@@ -33,6 +33,6 @@ export class OutcomeService {
         asks.push([price, quantity]);
       }
     }
-    return { bids, asks };
+    return { success: true, bids, asks };
   }
 }

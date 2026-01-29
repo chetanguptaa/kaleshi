@@ -1,7 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
 import { ORDER_COMMANDS_STREAM } from './redis.constants';
-import { OrderCancelledEvent, OrderNewEvent } from './redis.event-types';
+import {
+  OrderCancelledEvent,
+  OrderNewEvent,
+} from './redis-publisher.event-types';
 
 @Injectable()
 export class RedisPublisherService {

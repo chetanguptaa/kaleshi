@@ -6,7 +6,7 @@ export async function handleOrderRejected(event: OrderRejectedEvent) {
     where: { id: event.account_id },
     data: {
       reservedCoins: {
-        decrement: event.price * event.quantity * 100,
+        decrement: Math.round((event.price * event.quantity) / 100),
       },
     },
   });

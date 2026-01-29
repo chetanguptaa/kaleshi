@@ -30,7 +30,7 @@ export async function handleOrderPartial(event: OrderPartialEvent) {
       where: { id: event.account_id },
       data: {
         reservedCoins: {
-          decrement: event.price * filledQty * 100,
+          decrement: Math.round((event.price * filledQty) / 100),
         },
       },
     });

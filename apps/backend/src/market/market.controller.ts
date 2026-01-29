@@ -87,4 +87,18 @@ export class MarketController {
     const userRoles = req.user?.roles || [];
     return await this.marketService.getMarketById(userRoles, +id);
   }
+
+  @Get(':id/market-data') // TO get the initial array of outcomeId -> fair price
+  async getMarketData(@Param('id') id: number) {
+    return await this.marketService.getMarketData(+id);
+  }
+
+  @Get(':id/market-data/history')
+  async getMarketDataHistory(
+    @Param('id') id: number,
+    @Query('from') from?: Date,
+    @Query('to') to?: Date,
+  ) {
+    return await this.marketService.getMarketDataHistory(+id, from, to);
+  }
 }

@@ -13,24 +13,79 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useSocketEvent } from "@/hooks/use-socket-event";
 import {
-  useAccountSocket,
   useMarketById,
-  useMarketSocket,
-  useOutcomeSocket,
+  useMarketDataById,
+  useMarketDataHistoryById,
 } from "@/schemas/dashboard/hooks";
-import { TOutcomeSchema } from "@/schemas/dashboard/schema";
 import { TCurrentUser } from "@/schemas/layout/schema";
 import { useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
-import { CoinsIcon, MessageCircle } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { MAX_OUTCOMES_VISIBLE } from "../constants";
-import { getMostUpvotedComment, IOutcome, timeAgo } from "../utils";
+import {
+  calculatePotentialWin,
+  formatDate,
+  getMostUpvotedComment,
+  timeAgo,
+} from "../utils";
 import { DecimalInput } from "@/components/common/decimal-input";
+import OutcomeButton from "@/components/common/outcome-button";
+import ProbabilityChart from "@/components/common/probability-chart";
+import { socketService } from "@/services/socket";
+import { useMarketTimer } from "@/hooks/use-market-timer";
+import { useSocketEvent } from "@/hooks/use-socket-event";
+import { TMarketDataHistoryByIdResponse } from "@/schemas/dashboard/schema";
+import { IntegerInput } from "@/components/common/integer-input";
+
+interface IOutcome {
+  outcomeId: string;
+  outcomeName: string;
+  totalVolume: number;
+  fairPrice?: number;
+}
+
+type MarketDataSocketEvent = {
+  type: "market.data";
+  marketId: number;
+  timestamp: number;
+  data: {
+    outcomeId: string;
+    fairPrice: number | null;
+    totalVolume: number;
+  }[];
+};
+
+const buildChartData = (
+  historyData: {
+    outcomeId: string;
+    outcomeName: string;
+    history: { time: string; totalVolume: number; fairPrice?: number }[];
+  }[],
+  outcomeNameById: Record<string, string>,
+) => {
+  const rowsByTime = new Map<string, any>();
+  for (const outcome of historyData) {
+    const outcomeName = outcomeNameById[outcome.outcomeId];
+    if (!outcomeName) continue;
+    for (const point of outcome.history) {
+      if (!rowsByTime.has(point.time)) {
+        rowsByTime.set(point.time, {
+          timestamp: point.time,
+          date: formatDate(point.time),
+        });
+      }
+      rowsByTime.get(point.time)[outcomeName.replace(" ", "")] =
+        point.fairPrice !== null ? Math.round(point.fairPrice * 100) : null;
+    }
+  }
+  return Array.from(rowsByTime.values()).sort(
+    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
+  );
+};
 
 const TrendingMarketCard = ({
   id,
@@ -40,72 +95,113 @@ const TrendingMarketCard = ({
   currentUser: TCurrentUser | null;
 }) => {
   const trendingMarket = useMarketById(id);
-  const accountSocket = useAccountSocket(currentUser?.accountId || null);
-  const marketSocket = useMarketSocket(id);
+  const marketData = useMarketDataById(id);
+  const marketDataHistory = useMarketDataHistoryById(id);
   const { mutate, isPending } = useCreateOrder();
-  const [selectedOutcome, setSelectedOutcome] = useState<TOutcomeSchema | null>(
-    null,
-  );
-  const [outcomesWS, setOutcomesWS] = useState<IOutcome[]>([]);
-  const [outcomes, setOutcomes] = useState<
-    (TOutcomeSchema & {
-      price: number;
-    })[]
-  >([]);
+  const [selectedOutcome, setSelectedOutcome] = useState<IOutcome | null>(null);
   const [orderType, setOrderType] = useState<EOrderType>(EOrderType.LIMIT);
   const [orderSide, setOrderSide] = useState<EOrderSide>(EOrderSide.BUY);
-  const [quantity, setQuantity] = useState<number>(0.1);
-  const [limitPrice, setLimitPrice] = useState<number>(0.1);
+  const [quantity, setQuantity] = useState<number | null>(null);
+  const [limitPrice, setLimitPrice] = useState<number | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [outcomes, setOutcomes] = useState<IOutcome[]>([]);
+  const [totalVolume, setTotalVolume] = useState(0);
+  const [liveMarketHistory, setLiveMarketHistory] = useState<
+    TMarketDataHistoryByIdResponse["data"]
+  >([]);
   const isLoggedIn = Boolean(currentUser);
   const hasTradingAccount = Boolean(currentUser?.accountId);
-  const { totalVolume, totalNotional } = useMemo(() => {
-    if (!outcomesWS.length) return { totalVolume: 0, totalNotional: 0 };
-    return outcomesWS.reduce(
-      (acc, o) => {
-        acc.totalVolume += o.total_volume;
-        acc.totalNotional += o.total_notional;
-        return acc;
-      },
-      { totalVolume: 0, totalNotional: 0 },
-    );
-  }, [outcomesWS]);
-  const outcomeSocket = useOutcomeSocket(selectedOutcome?.id);
-  useSocketEvent<{
-    market_id: number;
-    outcomes: IOutcome[];
-    timestamp: number;
-  }>("market.data", (payload) => {
-    if (payload.market_id !== id) return;
-    setOutcomesWS(payload?.outcomes || []);
-  });
 
   let mostUpvotedComment = getMostUpvotedComment(
     trendingMarket?.data?.market?.comments || [],
   );
 
-  const marketOutcomes = useMemo(
-    () => trendingMarket?.data?.market?.outcomes ?? [],
-    [trendingMarket?.data?.market?.outcomes],
-  );
-
   const hasMoreOutcomes = outcomes.length > MAX_OUTCOMES_VISIBLE;
 
+  const outcomeNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    outcomes.forEach((o) => {
+      map[o.outcomeId] = o.outcomeName;
+    });
+    return map;
+  }, [outcomes]);
+
+  const chartData = useMemo(() => {
+    if (!marketDataHistory.isSuccess) return [];
+    if (
+      !marketDataHistory?.data ||
+      !marketDataHistory?.data?.data ||
+      !outcomes.length
+    )
+      return [];
+    return buildChartData(marketDataHistory?.data?.data, outcomeNameById);
+  }, [marketDataHistory, outcomeNameById]);
+
+  const timerText = useMarketTimer(
+    trendingMarket?.data?.market?.startsAt,
+    trendingMarket?.data?.market?.endsAt,
+  );
+
+  useSocketEvent<MarketDataSocketEvent>("market.data", (event) => {
+    if (event.marketId !== id) return;
+    setLiveMarketHistory((prev) =>
+      prev.map((outcome) => {
+        const tick = event.data.find((d) => d.outcomeId === outcome.outcomeId);
+        if (!tick) return outcome;
+        return {
+          ...outcome,
+          history: [
+            ...outcome.history,
+            {
+              time: new Date(event.timestamp).toISOString(),
+              fairPrice: tick.fairPrice,
+              totalVolume: tick.totalVolume,
+            },
+          ],
+        };
+      }),
+    );
+  });
+
   useEffect(() => {
-    if (!marketOutcomes.length) return;
-    const wsPriceMap = new Map(
-      outcomesWS.map((ws) => [
-        ws.outcome_id,
-        ws.prices[ws.prices.length - 1] / 100,
-      ]),
-    );
-    setOutcomes(
-      marketOutcomes.map((o) => ({
-        ...o,
-        price: wsPriceMap.get(o.id) ?? 0.1,
-      })),
-    );
-  }, [marketOutcomes, outcomesWS]);
+    if (!marketDataHistory.isSuccess) return;
+    setLiveMarketHistory(marketDataHistory.data.data);
+  }, [marketDataHistory.isSuccess]);
+
+  useEffect(() => {
+    if (!marketData?.isSuccess) return;
+    const outcomes = marketData?.data?.data;
+    let totalVolume = 0;
+    outcomes.forEach((outcome) => {
+      totalVolume += outcome.totalVolume;
+    });
+    setTotalVolume(totalVolume);
+    setOutcomes(outcomes);
+  }, [marketData]);
+
+  useEffect(() => {
+    if (!currentUser?.accountId) return;
+    socketService.registerAccount(currentUser?.accountId);
+    return () => {
+      socketService.unregisterAccount(currentUser?.accountId);
+    };
+  }, [currentUser?.accountId]);
+
+  useEffect(() => {
+    if (!id) return;
+    socketService.subscribeToMarket(id);
+    return () => {
+      socketService.unsubscribeFromMarket(id);
+    };
+  }, [id]);
+
+  useEffect(() => {
+    if (!selectedOutcome?.outcomeId) return;
+    socketService.subscribeToOutcome(selectedOutcome?.outcomeId);
+    return () => {
+      socketService.unsubscribeFromOutcome(selectedOutcome?.outcomeId);
+    };
+  }, [selectedOutcome?.outcomeId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -115,7 +211,7 @@ const TrendingMarketCard = ({
         side: orderSide,
         orderType,
         quantity,
-        outcomeId: selectedOutcome.id,
+        outcomeId: selectedOutcome?.outcomeId,
         ...(orderType === EOrderType.LIMIT && { price: limitPrice }),
       },
       {
@@ -128,11 +224,15 @@ const TrendingMarketCard = ({
     );
   };
 
-  if (trendingMarket.isLoading) {
+  if (
+    trendingMarket?.isLoading ||
+    marketData?.isLoading ||
+    marketDataHistory?.isLoading
+  ) {
     return <Loading />;
   }
 
-  if (trendingMarket.isSuccess) {
+  if (trendingMarket?.isSuccess) {
     return (
       <div className="bg-card rounded-lg border border-border">
         <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -145,17 +245,19 @@ const TrendingMarketCard = ({
               </div>
             </div>
             <div className="flex flex-wrap gap-3">
-              {outcomes.slice(0, MAX_OUTCOMES_VISIBLE).map((o) => (
-                <Button
-                  key={o.id}
-                  variant="outline"
+              {outcomes.slice(0, MAX_OUTCOMES_VISIBLE).map((o, index) => (
+                <OutcomeButton
+                  key={o.outcomeId}
+                  name={o.outcomeName}
+                  price={o.fairPrice || 0}
+                  potentialWin={calculatePotentialWin(o.fairPrice)}
+                  variant={index === 0 ? "positive" : "negative"}
                   onClick={() => {
+                    // handleOutcomeClick(o);
                     setSelectedOutcome(o);
                     setIsDialogOpen(true);
                   }}
-                >
-                  {o.name} {o.price}
-                </Button>
+                />
               ))}
               {hasMoreOutcomes && (
                 <Button asChild variant="secondary">
@@ -186,7 +288,7 @@ const TrendingMarketCard = ({
               )}
               <div className="flex items-center justify-between">
                 <div className="flex justify-center items-center gap-2 text-green-500">
-                  <CoinsIcon />
+                  $
                   <span className="text-muted-foreground text-sm">
                     Total Volume: {totalVolume ?? 0}
                   </span>
@@ -203,11 +305,27 @@ const TrendingMarketCard = ({
               </div>
             </div>
           </div>
+          {/* Right side - Chart */}
+          <div className="px-4 border-l border-border">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-muted-foreground">{timerText}</div>
+            </div>
+            <ProbabilityChart
+              data={chartData}
+              outcomes={outcomes.map((o) => ({
+                name: o.outcomeName,
+                percentage: o.fairPrice ? Math.round(o.fairPrice * 100) : 0,
+                color:
+                  o.fairPrice && o.fairPrice > 0.5 ? "positive" : "negative",
+              }))}
+              currentTimestamp={new Date().toLocaleString()}
+            />
+          </div>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>{selectedOutcome?.name}</DialogTitle>
+              <DialogTitle>{selectedOutcome?.outcomeName}</DialogTitle>
             </DialogHeader>
             <div className="flex items-center justify-between gap-2">
               <div className="flex gap-1">
@@ -250,12 +368,11 @@ const TrendingMarketCard = ({
               {orderType === EOrderType.LIMIT && (
                 <div>
                   <label className="text-sm text-muted-foreground">
-                    Limit price (¢)
+                    Limit price ($)
                   </label>
                   <DecimalInput
                     value={limitPrice}
                     onValueChange={setLimitPrice}
-                    min={0.01}
                   />
                 </div>
               )}
@@ -263,13 +380,8 @@ const TrendingMarketCard = ({
                 <label className="text-sm text-muted-foreground">
                   Quantity
                 </label>
-                <DecimalInput
-                  value={quantity}
-                  onValueChange={setQuantity}
-                  min={0.01}
-                />
+                <IntegerInput value={quantity} onValueChange={setQuantity} />
               </div>
-
               {orderType === EOrderType.MARKET && (
                 <div className="flex items-center justify-between text-sm text-muted-foreground border rounded-md p-2">
                   <span>Expiration</span>
@@ -300,7 +412,12 @@ const TrendingMarketCard = ({
                 <Button
                   className="w-full"
                   onClick={handleSubmit}
-                  disabled={isPending}
+                  disabled={
+                    isPending ||
+                    (orderType === EOrderType.MARKET && !quantity) ||
+                    (orderType === EOrderType.LIMIT &&
+                      (!limitPrice || !quantity))
+                  }
                 >
                   {orderSide === "Buy" ? "Buy" : "Sell"}
                 </Button>

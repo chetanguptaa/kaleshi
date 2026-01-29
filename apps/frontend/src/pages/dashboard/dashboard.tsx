@@ -41,10 +41,10 @@ export default function DashboardPage() {
   console.log("markets ", markets.data);
 
   if (
-    marketCategories.isLoading ||
-    markets.isLoading ||
-    marketCategoryById.isLoading ||
-    currentUser.isLoading
+    marketCategories?.isLoading ||
+    markets?.isLoading ||
+    marketCategoryById?.isLoading ||
+    currentUser?.isLoading
   ) {
     return <Loading />;
   }

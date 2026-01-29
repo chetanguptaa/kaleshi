@@ -20,8 +20,15 @@ import { OrderSide, OrderType } from 'generated/prisma/enums';
 const createOrderSchema = z
   .object({
     outcomeId: z.uuid(),
-    quantity: z.number(),
-    price: z.number().optional(),
+    quantity: z.number().positive('Quantity must be greater than 0'),
+    price: z
+      .number()
+      .gt(0, 'Price must be greater than 0')
+      .lte(1, 'Price must be less than or equal to 1')
+      .refine((p) => Number.isInteger(p * 100), {
+        message: 'Price must have at most 2 decimal places',
+      })
+      .optional(),
     side: z.enum([OrderSide.Buy, OrderSide.Sell]),
     orderType: z.enum([OrderType.LIMIT, OrderType.MARKET]),
   })

@@ -120,7 +120,7 @@ export class AuthService {
     }
   }
 
-  private signJwt(payload: object): string {
+  signJwt(payload: object): string {
     return jwt.sign(payload, process.env.JWT_SECRET!, { expiresIn: '7d' });
   }
 
@@ -130,20 +130,7 @@ export class AuthService {
       .catch(() => null);
   }
 
-  async getMe(request: AppRequest) {
-    const user = await this.prismaService.user.findUnique({
-      where: { id: request.user.sub },
-      include: {
-        userRoles: {
-          include: {
-            role: true,
-          },
-        },
-        account: true,
-      },
-    });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
-    request.user.accountId = user.account?.id ?? null;
+  getMe(request: AppRequest) {
     return {
       success: true,
       user: request.user,

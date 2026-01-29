@@ -8,7 +8,9 @@ export function useCreateTradingAccount() {
   return useMutation({
     mutationFn: createTradingAccount,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tradingAccount"] });
+      queryClient.invalidateQueries({
+        queryKey: ["currentUser"],
+      });
     },
     onError: (error) => {
       toast.error(

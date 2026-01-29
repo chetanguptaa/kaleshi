@@ -5,8 +5,8 @@ import {
   ENGINE_EVENT_PROCESSED_CHANNEL,
   ENGINE_EVENT_CHANNEL,
 } from './redis.constants';
-import { EngineEvent } from './redis.event-types';
 import { WsGateway } from 'src/websocket/ws.gateway';
+import { EngineEvent } from './redis-subscriber.event-types';
 
 @Injectable()
 export class RedisSubscriberService implements OnModuleInit {
@@ -53,56 +53,34 @@ export class RedisSubscriberService implements OnModuleInit {
       this.logger.debug(`Received engine event: ${event.type}`);
       switch (event.type) {
         case 'book.depth': {
-          this.gateway.broadcastDepth(event.outcome_id, {
-            bids: event.bids,
-            asks: event.asks,
-            ts: event.timestamp,
-          });
+          this.gateway.broadcastDepth(event.outcome_id, event);
           break;
         }
         case 'order.partial': {
           console.log('order partial event ', JSON.stringify(event));
-          this.gateway.broadcastOrderPartial(event.account_id, {
-            remaining: event.remaining,
-            originalQuantity: event.original_quantity,
-            outcomeId: event.outcome_id,
-            ts: event.timestamp,
-          });
+          this.gateway.broadcastOrderPartial(event.account_id, event);
           break;
         }
         case 'order.filled': {
           console.log('order partial event ', JSON.stringify(event));
-          this.gateway.broadcastFill(
-            event.buyer_account_id,
-            event.seller_account_id,
-            {
-              fillId: event.fill_id,
-              buyOrderId: event.buy_order_id,
-              sellOrderId: event.sell_order_id,
-              buyer: event.buyer_account_id,
-              seller: event.seller_account_id,
-              price: event.price,
-              qty: event.quantity,
-              ts: event.timestamp,
-            },
-          );
+          this.gateway.broadcastFill(event.account_id, event);
           break;
         }
         case 'order.cancelled': {
-          this.gateway.broadcastCancel(event.account_id, {
-            outcomeId: event.outcome_id,
-            ts: event.timestamp,
-          });
+          this.gateway.broadcastCancel(event.account_id, event);
           break;
         }
         case 'market.data': {
           console.log('event ', JSON.stringify(event, null, 2));
-          this.gateway.broadcastMarketData(event.market_id, {
-            market_id: event.market_id,
-            outcomes: event.outcomes,
-            timestamp: event.timestamp,
-            market_probabilities: event.market_probabilities,
-          });
+          this.gateway.broadcastMarketData(event.marketId, event);
+          break;
+        }
+        case 'order.rejected': {
+          this.gateway.broadcastOrderRejected(event.account_id, event);
+          break;
+        }
+        case 'order.placed': {
+          this.gateway.broadcastOrderPlaced(event.account_id, event);
           break;
         }
         default:

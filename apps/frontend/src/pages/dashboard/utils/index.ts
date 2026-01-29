@@ -34,9 +34,24 @@ export function getMostUpvotedComment(comments: TCommentSchema[]) {
   let mostUpvotedComment: TCommentSchema | null = null;
   for (let i = 0; i < comments.length; i++) {
     const comment = comments[i];
+    if (!mostUpvotedComment) {
+      mostUpvotedComment = comment;
+      continue;
+    }
     if (comment._count.votes > mostUpvotedComment._count.votes) {
       mostUpvotedComment = comment;
     }
   }
   return mostUpvotedComment;
 }
+
+export const calculatePotentialWin = (price?: number) => {
+  if (!price) return 100;
+  return Math.round((1 / price) * 100);
+};
+
+export const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString("en-US", {
+    day: "2-digit",
+    month: "short",
+  });

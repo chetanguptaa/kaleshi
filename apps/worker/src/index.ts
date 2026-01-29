@@ -17,6 +17,7 @@ import { handleOrderPartial } from "./handler/handleOrderPartial";
 import { handleOrderRejected } from "./handler/handleOrderRejected";
 import { handleTrade } from "./handler/handleTrade";
 import { handleOrderPlaced } from "./handler/handleOrderPlaced";
+import { handleMarketData } from "./handler/handleMarketData";
 
 const redis = createClient({ url: process.env.REDIS_URL! });
 
@@ -48,6 +49,10 @@ async function processMessage(redis: any, id: string, payload: string) {
     switch (event.type) {
       case "book.depth": {
         await handleBookDepth(event);
+        break;
+      }
+      case "market.data": {
+        await handleMarketData(event);
         break;
       }
       case "order.placed": {

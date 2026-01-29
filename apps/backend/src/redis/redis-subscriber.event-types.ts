@@ -1,7 +1,7 @@
-import { OrderSide, TimeInForce } from "generated/prisma/enums";
+import { OrderSide, TimeInForce } from 'generated/prisma/enums';
 
 export type OrderPlacedEvent = {
-  type: "order.placed";
+  type: 'order.placed';
   order_id: number;
   account_id: number;
   outcome_id: string;
@@ -12,7 +12,7 @@ export type OrderPlacedEvent = {
 };
 
 export type OrderPartialEvent = {
-  type: "order.partial";
+  type: 'order.partial';
   order_id: number;
   account_id: number;
   outcome_id: string;
@@ -25,7 +25,7 @@ export type OrderPartialEvent = {
 };
 
 export type OrderFilledEvent = {
-  type: "order.filled";
+  type: 'order.filled';
   order_id: number;
   account_id: number;
   outcome_id: string;
@@ -36,7 +36,7 @@ export type OrderFilledEvent = {
 };
 
 export type OrderCancelledEvent = {
-  type: "order.cancelled";
+  type: 'order.cancelled';
   side: OrderSide;
   quantity: number;
   price: number;
@@ -48,7 +48,7 @@ export type OrderCancelledEvent = {
 };
 
 export type OrderRejectedEvent = {
-  type: "order.rejected";
+  type: 'order.rejected';
   account_id: number;
   outcome_id: string;
   side: OrderSide;
@@ -58,7 +58,7 @@ export type OrderRejectedEvent = {
 };
 
 export type BookDepthEvent = {
-  type: "book.depth";
+  type: 'book.depth';
   market_id: number;
   outcome_id: string;
   bids: [number, number][];
@@ -67,8 +67,8 @@ export type BookDepthEvent = {
 };
 
 export type MarketDataEvent = {
-  type: "market.data";
-  marketId: string;
+  type: 'market.data';
+  marketId: number;
   data: {
     outcomeId: string;
     fairPrice: number;
@@ -78,7 +78,7 @@ export type MarketDataEvent = {
 };
 
 export type TradeEvent = {
-  type: "trade";
+  type: 'trade';
   trade_id: string;
   account_id: number;
   outcome_id: string;
@@ -102,13 +102,3 @@ export type EngineEvent =
   | TradeEvent
   | BookDepthEvent
   | MarketDataEvent;
-
-export type TStreamMessage = {
-  id: string;
-  message: Record<string, string>;
-};
-
-export type TStreamResponse = {
-  name: string;
-  messages: TStreamMessage[];
-}[];
