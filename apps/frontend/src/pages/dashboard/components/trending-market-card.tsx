@@ -13,83 +13,35 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  useMarketById,
-  useMarketDataById,
-  useMarketDataHistoryById,
-} from "@/schemas/dashboard/hooks";
 import { TCurrentUser } from "@/schemas/layout/schema";
 import { useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
 import { MessageCircle } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { MAX_OUTCOMES_VISIBLE } from "../constants";
-import {
-  calculatePotentialWin,
-  formatDate,
-  getMostUpvotedComment,
-  timeAgo,
-} from "../utils";
 import { DecimalInput } from "@/components/common/decimal-input";
 import OutcomeButton from "@/components/common/outcome-button";
 import ProbabilityChart from "@/components/common/probability-chart";
 import { socketService } from "@/services/socket";
 import { useMarketTimer } from "@/hooks/use-market-timer";
 import { useSocketEvent } from "@/hooks/use-socket-event";
-import { TMarketDataHistoryByIdResponse } from "@/schemas/dashboard/schema";
 import { IntegerInput } from "@/components/common/integer-input";
-
-interface IOutcome {
-  outcomeId: string;
-  outcomeName: string;
-  totalVolume: number;
-  fairPrice?: number;
-}
-
-type MarketDataSocketEvent = {
-  type: "market.data";
-  marketId: number;
-  timestamp: number;
-  data: {
-    outcomeId: string;
-    fairPrice: number | null;
-    totalVolume: number;
-  }[];
-};
-
-const buildChartData = (
-  historyData: {
-    outcomeId: string;
-    outcomeName: string;
-    history: {
-      time: string;
-      totalVolume: number;
-      fairPrice?: number;
-    }[];
-  }[],
-  outcomeNameById: Record<string, string>,
-) => {
-  const rowsByTime = new Map<string, any>();
-  for (const outcome of historyData) {
-    const outcomeName = outcomeNameById[outcome.outcomeId];
-    if (!outcomeName) continue;
-    for (const point of outcome.history) {
-      if (!rowsByTime.has(point.time)) {
-        rowsByTime.set(point.time, {
-          timestamp: point.time,
-          date: formatDate(point.time),
-        });
-      }
-      rowsByTime.get(point.time)[outcomeName.replace(" ", "")] =
-        point.fairPrice !== null ? Math.round(point.fairPrice) : null;
-    }
-  }
-  return Array.from(rowsByTime.values()).sort(
-    (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime(),
-  );
-};
+import { buildChartData } from "@/lib/market/build-chart-data";
+import {
+  calculatePotentialWin,
+  getMostUpvotedComment,
+  IOutcome,
+  MarketDataSocketEvent,
+  timeAgo,
+} from "@/lib/market";
+import {
+  useMarketById,
+  useMarketDataById,
+  useMarketDataHistoryById,
+} from "@/schemas/market/hooks";
+import { TMarketDataHistoryByIdResponse } from "@/schemas/market/schema";
 
 const TrendingMarketCard = ({
   id,
@@ -98,6 +50,7 @@ const TrendingMarketCard = ({
   id: number;
   currentUser: TCurrentUser | null;
 }) => {
+  const navigate = useNavigate();
   const trendingMarket = useMarketById(id);
   const marketData = useMarketDataById(id);
   const marketDataHistory = useMarketDataHistoryById(id);
@@ -135,26 +88,57 @@ const TrendingMarketCard = ({
     trendingMarket?.data?.market?.endsAt,
   );
 
-  useSocketEvent<MarketDataSocketEvent>("market.data", (event) => {
-    if (event.marketId !== id) return;
-    setLiveMarketHistory((prev) =>
-      prev.map((outcome) => {
-        const tick = event.data.find((d) => d.outcomeId === outcome.outcomeId);
-        if (!tick) return outcome;
-        return {
-          ...outcome,
-          history: [
-            ...outcome.history,
-            {
-              time: new Date(event.timestamp).toISOString(),
-              fairPrice: Math.round((tick.fairPrice * 100) / 100),
-              totalVolume: Math.round((tick.totalVolume * 100) / 100),
-            },
-          ],
-        };
-      }),
-    );
-  });
+  const handleMarketData = useCallback(
+    (event: MarketDataSocketEvent) => {
+      if (event.marketId !== id) return;
+      const ticksByOutcomeId = new Map(event.data.map((d) => [d.outcomeId, d]));
+      setOutcomes((prevOutcomes) => {
+        const updatedOutcomes = prevOutcomes.map((outcome) => {
+          const tick = ticksByOutcomeId.get(outcome.outcomeId);
+          if (!tick) {
+            return outcome;
+          }
+          return {
+            ...outcome,
+            fairPrice:
+              tick.fairPrice !== null
+                ? Math.round(tick.fairPrice * 100) / 100
+                : outcome.fairPrice,
+            totalVolume: Math.round(tick.totalVolume * 100) / 100,
+          };
+        });
+        const newTotalVolume = updatedOutcomes.reduce(
+          (sum, o) => sum + o.totalVolume,
+          0,
+        );
+        setTotalVolume(Math.round(newTotalVolume * 100) / 100);
+        return updatedOutcomes;
+      });
+
+      setLiveMarketHistory((prev) =>
+        prev.map((outcome) => {
+          const tick = event.data.find(
+            (d) => d.outcomeId === outcome.outcomeId,
+          );
+          if (!tick) return outcome;
+          return {
+            ...outcome,
+            history: [
+              ...outcome.history,
+              {
+                time: new Date(event.timestamp).toISOString(),
+                fairPrice: Math.round((tick.fairPrice * 100) / 100),
+                totalVolume: Math.round((tick.totalVolume * 100) / 100),
+              },
+            ],
+          };
+        }),
+      );
+    },
+    [id],
+  );
+
+  useSocketEvent<MarketDataSocketEvent>("market.data", handleMarketData);
 
   const chartData = useMemo(() => {
     if (!liveMarketHistory.length) return [];
@@ -175,7 +159,7 @@ const TrendingMarketCard = ({
     });
     setTotalVolume(Math.round((totalVolume * 100) / 100));
     setOutcomes(outcomes);
-  }, [marketData]);
+  }, [marketData?.isSuccess, marketData?.data?.data]);
 
   useEffect(() => {
     if (!currentUser?.accountId) return;
@@ -233,7 +217,12 @@ const TrendingMarketCard = ({
   if (trendingMarket?.isSuccess) {
     return (
       <div className="bg-card rounded-lg border border-border">
-        <div className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div
+          className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 hover:cursor-pointer"
+          onClick={() => {
+            navigate(`/market/${trendingMarket?.data?.market?.id}`);
+          }}
+        >
           <div className="space-y-6">
             <div className="flex items-start gap-4">
               <div className="flex-1">
@@ -247,10 +236,11 @@ const TrendingMarketCard = ({
                 <OutcomeButton
                   key={o.outcomeId}
                   name={o.outcomeName}
+                  color={o.outcomeColor ?? "#000000"}
                   price={o.fairPrice || 0}
                   potentialWin={calculatePotentialWin(o.fairPrice)}
-                  variant={index === 0 ? "positive" : "negative"}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     // handleOutcomeClick(o);
                     setSelectedOutcome(o);
                     setIsDialogOpen(true);
@@ -293,7 +283,7 @@ const TrendingMarketCard = ({
                 </div>
                 {mostUpvotedComment && (
                   <Link
-                    to="/abc"
+                    to={`/market/${trendingMarket?.data?.market?.id}`}
                     className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <MessageCircle className="w-4 h-4" />
@@ -313,10 +303,7 @@ const TrendingMarketCard = ({
               outcomes={outcomes.map((o) => ({
                 name: o.outcomeName,
                 percentage: o.fairPrice ? Math.round(o.fairPrice) : 0,
-                color:
-                  o.fairPrice && Math.round(o.fairPrice / 100) > 0.5
-                    ? "positive"
-                    : "negative",
+                color: o.outcomeColor ?? "#000000",
               }))}
               currentTimestamp={new Date().toLocaleString()}
             />
@@ -342,6 +329,7 @@ const TrendingMarketCard = ({
                   variant={
                     orderSide === EOrderSide.SELL ? "default" : "outline"
                   }
+                  color={selectedOutcome?.outcomeColor || "default"}
                   className="rounded-3xl"
                   onClick={() => setOrderSide(EOrderSide.SELL)}
                 >
@@ -395,13 +383,33 @@ const TrendingMarketCard = ({
             {/* CTA */}
             <div className="pt-2">
               {!isLoggedIn && (
-                <Button className="w-full" asChild>
+                <Button
+                  className="w-full"
+                  asChild
+                  style={{
+                    backgroundColor: selectedOutcome?.outcomeColor || "default",
+                    color:
+                      selectedOutcome?.outcomeColor === "default"
+                        ? "black"
+                        : "white",
+                  }}
+                >
                   <Link to="/signup">Sign up to trade</Link>
                 </Button>
               )}
 
               {isLoggedIn && !hasTradingAccount && (
-                <Button className="w-full" asChild>
+                <Button
+                  className="w-full"
+                  asChild
+                  style={{
+                    backgroundColor: selectedOutcome?.outcomeColor || "default",
+                    color:
+                      selectedOutcome?.outcomeColor === "default"
+                        ? "black"
+                        : "white",
+                  }}
+                >
                   <Link to="/create-trading-account">
                     Create trading account
                   </Link>
@@ -411,6 +419,13 @@ const TrendingMarketCard = ({
               {isLoggedIn && hasTradingAccount && (
                 <Button
                   className="w-full"
+                  style={{
+                    backgroundColor: selectedOutcome?.outcomeColor || "default",
+                    color:
+                      selectedOutcome?.outcomeColor === "default"
+                        ? "black"
+                        : "white",
+                  }}
                   onClick={handleSubmit}
                   disabled={
                     isPending ||

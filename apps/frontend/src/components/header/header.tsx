@@ -21,13 +21,15 @@ const selectedTabs = [];
 export default function Header({
   selectedTab,
   currentUser,
+  noSearchMarket,
 }: {
   selectedTab: string | null;
   currentUser: TCurrentUser | null;
+  noSearchMarket?: boolean;
 }) {
   const navigate = useNavigate();
   return (
-    <header className="border-b bg-white">
+    <header className="border-b bg-white/80 backdrop-blur sticky top-0 z-40">
       <div className="px-4 md:px-6 py-4  w-[90%] mx-auto">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-8">
@@ -50,15 +52,18 @@ export default function Header({
             </nav>
           </div>
           <div className="flex gap-2">
-            <div className="flex items-end gap-4 flex-1 max-w-xs">
-              <div className="relative hidden sm:block flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search markets"
-                  className="pl-10 bg-gray-50 border-gray-200"
-                />
+            {!noSearchMarket && (
+              <div className="flex items-end gap-4 flex-1 max-w-xs">
+                <div className="relative hidden sm:block flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search markets"
+                    className="pl-10 bg-gray-50 border-gray-200"
+                  />
+                </div>
               </div>
-            </div>
+            )}
+
             <div className="flex items-center gap-3">
               {currentUser ? (
                 <>

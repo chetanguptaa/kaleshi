@@ -1,13 +1,23 @@
 import { TCommentSchema } from "@/schemas/dashboard/schema";
 
 export interface IOutcome {
-  outcome_id: string;
-  outcome_name: string;
-  total_volume: number;
-  total_notional: number;
-  prices: number[];
-  ticker: string;
+  outcomeId: string;
+  outcomeName: string;
+  outcomeColor: string;
+  totalVolume: number;
+  fairPrice?: number;
 }
+
+export type MarketDataSocketEvent = {
+  type: "market.data";
+  marketId: number;
+  timestamp: number;
+  data: {
+    outcomeId: string;
+    fairPrice: number | null;
+    totalVolume: number;
+  }[];
+};
 
 export function timeAgo(createdAt: Date | string): string {
   const createdTime =
@@ -46,8 +56,8 @@ export function getMostUpvotedComment(comments: TCommentSchema[]) {
 }
 
 export const calculatePotentialWin = (price?: number) => {
-  if (!price) return 100;
-  return Math.round((1 / price) * 100);
+  if (!price || price <= 0) return 0;
+  return Math.round(10000 / price);
 };
 
 export const formatDate = (iso: string) =>

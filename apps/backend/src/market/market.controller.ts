@@ -18,6 +18,13 @@ import { MarketService } from './market.service';
 import { z } from 'zod';
 import { type AppRequest } from 'src/@types/express';
 
+const hexColor = z
+  .string()
+  .regex(
+    /^#[0-9A-Fa-f]{6}$/,
+    'color must be a valid hex color in the format #RRGGBB',
+  );
+
 const createMarketSchema = z
   .object({
     name: z.string().min(3),
@@ -26,6 +33,7 @@ const createMarketSchema = z
       .array(
         z.object({
           name: z.string().min(3),
+          color: hexColor,
         }),
       )
       .min(2),

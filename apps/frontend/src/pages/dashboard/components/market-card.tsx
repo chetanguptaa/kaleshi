@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Market } from "@/lib/mockData";
 import { Clock, TrendingUp, TrendingDown } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { TMarket } from "@/schemas/dashboard/schema";
+import { TMarket } from "@/schemas/market/schema";
 
 export function MarketCard({ market }: { market: TMarket }) {
   const formatVolume = (vol: number) => {

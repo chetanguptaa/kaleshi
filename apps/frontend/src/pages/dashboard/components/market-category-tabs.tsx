@@ -1,4 +1,3 @@
-import { useMarketsPrefetch } from "@/schemas/dashboard/hooks";
 import {
   TMarketCategory,
   TMarketSelection,
@@ -7,6 +6,7 @@ import {
 import { Dispatch, SetStateAction } from "react";
 import { buildMarketTabs } from "./build-tabs";
 import { SetterOrUpdater } from "recoil";
+import { useMarketsPrefetch } from "@/schemas/market/hooks";
 
 export function MarketCategoryTabs({
   marketCategories,

@@ -17,7 +17,7 @@ interface ChartDataPoint {
 interface Outcome {
   name: string;
   percentage: number;
-  color: "positive" | "negative";
+  color: string;
 }
 
 interface ProbabilityChartProps {
@@ -38,37 +38,6 @@ const ProbabilityChart = ({
 
   return (
     <div className="relative h-[280px] w-full">
-      {/* Timestamp header */}
-      {/*<div className="absolute top-0 left-1/3 text-sm text-muted-foreground">
-        {currentTimestamp || "1/28/2026, 8:46 AM"}
-      </div>*/}
-
-      {/* Outcome labels on chart */}
-      {/*<div className="absolute top-12 left-1/3 space-y-1 z-10">
-        {outcomes.map((outcome) => (
-          <div key={outcome.name} className="flex flex-col">
-            <span
-              className={`text-sm font-medium ${
-                outcome.color === "positive"
-                  ? "text-chart-positive"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {outcome.name}
-            </span>
-            <span
-              className={`text-3xl font-bold ${
-                outcome.color === "positive"
-                  ? "text-chart-positive"
-                  : "text-muted-foreground"
-              }`}
-            >
-              {outcome.percentage}%
-            </span>
-          </div>
-        ))}
-      </div>*/}
-
       {/* Y-axis labels on right */}
       <div className="absolute right-0 top-8 bottom-8 flex flex-col justify-between text-xs text-muted-foreground">
         <span>100%</span>
@@ -84,30 +53,31 @@ const ProbabilityChart = ({
           margin={{ top: 40, right: 40, left: 0, bottom: 20 }}
         >
           <defs>
-            <linearGradient id="positiveGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="5%"
-                stopColor="hsl(var(--chart-positive))"
-                stopOpacity={0.2}
-              />
-              <stop
-                offset="95%"
-                stopColor="hsl(var(--chart-positive))"
-                stopOpacity={0}
-              />
-            </linearGradient>
-            <linearGradient id="negativeGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop
-                offset="5%"
-                stopColor="hsl(var(--chart-negative))"
-                stopOpacity={0.1}
-              />
-              <stop
-                offset="95%"
-                stopColor="hsl(var(--chart-negative))"
-                stopOpacity={0}
-              />
-            </linearGradient>
+            {outcomes.map((outcome) => {
+              const gradientId = `${outcome.name.replace(/\s+/g, "")}Gradient`;
+
+              return (
+                <linearGradient
+                  key={gradientId}
+                  id={gradientId}
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="1"
+                >
+                  <stop
+                    offset="5%"
+                    stopColor={outcome.color}
+                    stopOpacity={0.2}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor={outcome.color}
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+              );
+            })}
           </defs>
 
           <XAxis
@@ -147,25 +117,22 @@ const ProbabilityChart = ({
             formatter={(value: number, name: string) => [`${value}%`, name]}
           />
 
-          {outcomes.map((outcome) => (
-            <Area
-              key={outcome.name}
-              type="monotone"
-              dataKey={outcome.name.replace(/\s+/g, "")}
-              stroke={
-                outcome.color === "positive"
-                  ? "hsl(var(--chart-positive))"
-                  : "hsl(var(--chart-negative))"
-              }
-              strokeWidth={2}
-              fill={
-                outcome.color === "positive"
-                  ? "url(#positiveGradient)"
-                  : "url(#negativeGradient)"
-              }
-              dot={false}
-            />
-          ))}
+          {outcomes.map((outcome) => {
+            const key = outcome.name.replace(/\s+/g, "");
+            const gradientId = `${key}Gradient`;
+
+            return (
+              <Area
+                key={outcome.name}
+                type="monotone"
+                dataKey={key}
+                stroke={outcome.color}
+                strokeWidth={2}
+                fill={`url(#${gradientId})`}
+                dot={false}
+              />
+            );
+          })}
         </AreaChart>
       </ResponsiveContainer>
     </div>

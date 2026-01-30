@@ -1,62 +1,53 @@
-import { OrderBook as OrderBookType } from '@/lib/mockData';
+import { TBookDepthByOutcomeIdResponse } from "@/schemas/market/schema";
 
-interface OrderBookProps {
-  orderBook: OrderBookType;
-}
-
-export function OrderBook({ orderBook }: OrderBookProps) {
+export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
   const maxTotal = Math.max(
-    ...orderBook.bids.map(b => b.total),
-    ...orderBook.asks.map(a => a.total)
+    ...bookDepth?.bids?.map((b) => b[0] * b[1]),
+    ...bookDepth?.asks?.map((a) => a[0] * a[1]),
   );
-  
   return (
     <div className="glass-card p-5 animate-slide-up">
       <h3 className="font-semibold mb-4">Order Book</h3>
-      
       <div className="grid grid-cols-2 gap-4">
-        {/* Bids (Buy orders) */}
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-2 px-2">
             <span>Price</span>
             <span>Qty</span>
           </div>
           <div className="space-y-0.5">
-            {orderBook.bids.map((bid, i) => (
+            {bookDepth?.bids?.map((bid, i) => (
               <div key={i} className="order-book-row relative overflow-hidden">
-                <div 
+                <div
                   className="absolute inset-0 bg-success/10"
-                  style={{ width: `${(bid.total / maxTotal) * 100}%` }}
+                  style={{ width: `${((bid[0] * bid[1]) / maxTotal) * 100}%` }}
                 />
                 <span className="relative font-mono text-success">
-                  ${bid.price.toFixed(2)}
+                  ${(bid[0] / 100)?.toFixed(2)}
                 </span>
                 <span className="relative font-mono text-muted-foreground">
-                  {bid.quantity.toLocaleString()}
+                  {(bid[1] / 100)?.toLocaleString()}
                 </span>
               </div>
             ))}
           </div>
         </div>
-        
-        {/* Asks (Sell orders) */}
         <div>
           <div className="flex justify-between text-xs text-muted-foreground mb-2 px-2">
             <span>Price</span>
             <span>Qty</span>
           </div>
           <div className="space-y-0.5">
-            {orderBook.asks.map((ask, i) => (
+            {bookDepth?.asks?.map((ask, i) => (
               <div key={i} className="order-book-row relative overflow-hidden">
-                <div 
+                <div
                   className="absolute inset-0 bg-destructive/10 right-0"
-                  style={{ width: `${(ask.total / maxTotal) * 100}%` }}
+                  style={{ width: `${((ask[0] * ask[1]) / maxTotal) * 100}%` }}
                 />
                 <span className="relative font-mono text-destructive">
-                  ${ask.price.toFixed(2)}
+                  ${(ask[0] / 100)?.toFixed(2)}
                 </span>
                 <span className="relative font-mono text-muted-foreground">
-                  {ask.quantity.toLocaleString()}
+                  {(ask[1] / 100)?.toLocaleString()}
                 </span>
               </div>
             ))}

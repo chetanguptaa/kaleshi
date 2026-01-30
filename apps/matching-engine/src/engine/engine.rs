@@ -44,7 +44,7 @@ impl MatchingEngine {
     ) -> (
         Vec<PublishEngineEvent>,
         &OrderBook,
-        Vec<(String, Option<Price>, Price, Snapshot)>,
+        Vec<(String, Price, Price, Snapshot)>,
     ) {
         let mut events = Vec::new();
         let execution_result = self.execute_order_on_book(order);
@@ -63,13 +63,10 @@ impl MatchingEngine {
                     .total_outcome_volumes
                     .get(&order.outcome_id)
                     .unwrap_or(&Price(0));
-                let snapshots = self.create_snapshots(redis, total_volume.clone()).await;
-                if let Some(book) = self.books.get(&order.outcome_id) {
-                    if let Some(fair_price) = Self::compute_fair_price(redis, book).await {
-                        self.fair_prices
-                            .insert(order.outcome_id.clone(), fair_price);
-                    }
-                }
+                let fair_price = self.fair_prices.get(&order.outcome_id).unwrap_or(&Price(0));
+                let snapshots = self
+                    .create_snapshots(fair_price.clone(), total_volume.clone())
+                    .await;
                 let book = self.books.get(&order.outcome_id).unwrap();
                 return (events, book, snapshots);
             }
@@ -99,6 +96,14 @@ impl MatchingEngine {
                 });
             }
             OrderStatus::Filled | OrderStatus::PartiallyFilled => {
+                self.fair_prices
+                    .insert(outcome_id.clone(), execution_report.price);
+                let _: Result<String, RedisError> = redis
+                    .set(
+                        format!("fair_price:{}", &order.outcome_id),
+                        execution_report.price.0.to_string(),
+                    )
+                    .await;
                 if execution_report.status == OrderStatus::Filled {
                     events.push(PublishEngineEvent::OrderFilled {
                         order_id: execution_report.order_id,
@@ -162,7 +167,9 @@ impl MatchingEngine {
             }
         }
 
-        let snapshots = self.create_snapshots(redis, new_total_volume.clone()).await;
+        let snapshots = self
+            .create_snapshots(execution_report.price, new_total_volume.clone())
+            .await;
         let book = self.books.get(&order.outcome_id).unwrap();
         (events, book, snapshots)
     }
@@ -201,17 +208,23 @@ impl MatchingEngine {
 
     async fn create_snapshots(
         &mut self,
-        redis: &mut Connection,
+        new_fair_price: Price,
         new_total_volume: Price,
-    ) -> Vec<(String, Option<Price>, Price, Snapshot)> {
+    ) -> Vec<(String, Price, Price, Snapshot)> {
         let mut snapshots = Vec::new();
         for (outcome_id, book) in &self.books {
-            let fair_price = Self::compute_fair_price(redis, book).await;
-            if let Some(price) = fair_price {
-                self.fair_prices.insert(outcome_id.clone(), price);
-            }
             let snapshot = book.snapshot();
-            snapshots.push((outcome_id.clone(), fair_price, new_total_volume, snapshot));
+            let fair_price = self
+                .fair_prices
+                .get(outcome_id)
+                .copied()
+                .unwrap_or(Price(0));
+            let total_volume = self
+                .total_outcome_volumes
+                .get(outcome_id)
+                .copied()
+                .unwrap_or(Price(0));
+            snapshots.push((outcome_id.clone(), fair_price, total_volume, snapshot));
         }
         snapshots
     }
@@ -262,16 +275,6 @@ impl MatchingEngine {
                 })
                 .collect(),
         }
-    }
-
-    async fn compute_fair_price(redis: &mut Connection, book: &OrderBook) -> Option<Price> {
-        let fair_price = book.mid_price();
-        if let Some(price) = fair_price {
-            let _: Result<String, RedisError> = redis
-                .set(format!("fair_price:{}", book.symbol()), price.0.to_string())
-                .await;
-        }
-        fair_price
     }
 }
 

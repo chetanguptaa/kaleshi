@@ -30,6 +30,7 @@ export class MarketService {
         await tx.outcome.createMany({
           data: body.outcomes.map((o) => ({
             name: o.name,
+            color: o.color,
             marketId: newMarket.id,
           })),
         });
@@ -156,6 +157,7 @@ export class MarketService {
           select: {
             id: true,
             name: true,
+            color: true,
           },
         },
       },
@@ -166,6 +168,7 @@ export class MarketService {
     const outcomes = market.outcomes.map((outcome) => ({
       id: outcome.id,
       name: outcome.name,
+      color: outcome.color,
     }));
     const data = await this.getLatestData(outcomes);
     return {
@@ -183,6 +186,7 @@ export class MarketService {
           select: {
             id: true,
             name: true,
+            color: true,
           },
         },
       },
@@ -196,6 +200,7 @@ export class MarketService {
       {
         outcomeId: string;
         outcomeName: string;
+        outcomeColor: string | null;
         history: {
           time: Date;
           fairPrice: number | null;
@@ -207,6 +212,7 @@ export class MarketService {
       outcomeMap.set(o.id, {
         outcomeId: o.id,
         outcomeName: o.name,
+        outcomeColor: o.color,
         history: [],
       });
     }
@@ -251,6 +257,7 @@ export class MarketService {
     outcomes: {
       id: string;
       name: string;
+      color: string | null;
     }[],
   ) {
     if (!outcomes.length) return [];
@@ -276,6 +283,7 @@ export class MarketService {
         return {
           outcomeId: oi.id,
           outcomeName: oi.name,
+          outcomeColor: oi.color,
           fairPrice: null,
           totalVolume: 0,
         };
@@ -283,6 +291,7 @@ export class MarketService {
       return {
         outcomeId: oi.id,
         outcomeName: oi.name,
+        outcomeColor: oi.color,
         fairPrice: Number(row.fair_price! as number),
         totalVolume: Number(row.total_volume! as number),
       };

@@ -3,17 +3,16 @@ import Loading from "@/components/loading";
 import {
   useMarketCategories,
   useMarketCategoryById,
-  useMarkets,
-  useMarketsPrefetch,
 } from "@/schemas/dashboard/hooks";
 import { MarketCategoryTabs } from "./components/market-category-tabs";
 import Header from "@/components/header/header";
-import { MarketCard } from "@/components/MarketCard";
 import { useRecoilState } from "recoil";
 import marketSelectionAtom from "@/store/atoms/dashboard/marketSelectionAtom";
 import marketSubSelectionAtom from "@/store/atoms/dashboard/marketSubSelectionAtom";
 import TrendingMarketCard from "./components/trending-market-card";
 import { useCurrentUser } from "@/schemas/layout/hooks";
+import { useMarkets, useMarketsPrefetch } from "@/schemas/market/hooks";
+import { MarketCard } from "./components/market-card";
 
 export default function DashboardPage() {
   const [selection, setSelection] = useRecoilState(marketSelectionAtom);
@@ -124,11 +123,6 @@ export default function DashboardPage() {
               </div>
             </section>
           </div>
-          <footer className="border-t border-border/50 py-8 fixed bottom-0 w-full bg-background">
-            <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-              <p>© 2025 Kaleshi. Trade responsibly.</p>
-            </div>
-          </footer>
         </div>
       </RootLayout>
     );

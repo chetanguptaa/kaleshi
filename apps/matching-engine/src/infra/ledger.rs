@@ -6,7 +6,7 @@ use redis::AsyncCommands;
 
 pub async fn append_events_to_ledger(
     redis: &mut redis::aio::Connection,
-    events: &Vec<(String, Option<Price>, Price, Snapshot)>,
+    events: &Vec<(String, Price, Price, Snapshot)>,
 ) -> EngineResult<()> {
     let snapshot: Vec<(String, Snapshot)> = events
         .iter()

@@ -125,6 +125,7 @@ model Outcome {
   name           String
   marketId       Int
   avatar         String?
+  color          String?
   metadata       Json?
   settledPrice   Int?
   isResolved     Boolean?
