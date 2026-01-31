@@ -39,6 +39,6 @@ export async function start() {
 }
 
 start().catch((err) => {
-  console.error("Worker failed", err);
+  console.error("Close betting cron failed", err);
   process.exit(1);
 });
