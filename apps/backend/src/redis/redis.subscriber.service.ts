@@ -83,6 +83,14 @@ export class RedisSubscriberService implements OnModuleInit {
           this.gateway.broadcastOrderPlaced(event.account_id, event);
           break;
         }
+        case 'trade': {
+          this.gateway.broadcastTrade(
+            event.account_id,
+            event.filled_account_id,
+            event,
+          );
+          break;
+        }
         default:
           this.logger.warn(`Unknown event received: ${JSON.stringify(event)}`);
       }

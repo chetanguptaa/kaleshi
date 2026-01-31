@@ -14,6 +14,7 @@ import {
   OrderPartialEvent,
   OrderPlacedEvent,
   OrderRejectedEvent,
+  TradeEvent,
 } from 'src/redis/redis-subscriber.event-types';
 
 @WebSocketGateway({
@@ -143,6 +144,17 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
   broadcastOrderPartial(accountId: number, payload: OrderPartialEvent) {
     const client = this.clientsByAccount.get(accountId);
     client?.emit('order.partial', payload);
+  }
+
+  broadcastTrade(
+    accountId: number,
+    filledAccountId: number,
+    payload: TradeEvent,
+  ) {
+    const client = this.clientsByAccount.get(accountId);
+    const filledClient = this.clientsByAccount.get(filledAccountId);
+    client?.emit('trade', payload);
+    filledClient?.emit('trade', payload);
   }
 
   broadcastFill(accountId: number, payload: OrderFilledEvent) {
