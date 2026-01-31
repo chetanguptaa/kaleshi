@@ -512,28 +512,6 @@ export default function Market() {
                   </CardContent>
                 </Card>
                 <CommentPreview
-                  // comments={[
-                  //   {
-                  //     id: "1",
-                  //     text: "Real will win, I just have a feeling that they will win and ofc they have mbappe, rodrygo",
-                  //     timestamp: new Date(),
-                  //     user: {
-                  //       name: "John Doe",
-                  //       avatar: "https://example.com/avatar.jpg",
-                  //       initials: "JD",
-                  //     },
-                  //   },
-                  //   {
-                  //     id: "2",
-                  //     text: "Barcelona will win",
-                  //     timestamp: new Date(),
-                  //     user: {
-                  //       name: "John Doe",
-                  //       avatar: "https://example.com/avatar.jpg",
-                  //       initials: "JD",
-                  //     },
-                  //   },
-                  // ]}
                   comments={market?.data?.market?.comments || []}
                   onShowMore={() => {}}
                   maxPreview={4}

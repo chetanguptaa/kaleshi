@@ -37,7 +37,7 @@ const ProbabilityChart = ({
     : Math.floor(data.length * 0.4);
 
   return (
-    <div className="relative h-[280px] w-full">
+    <div className="relative h-[232px] w-full">
       {/* Y-axis labels on right */}
       <div className="absolute right-0 top-8 bottom-8 flex flex-col justify-between text-xs text-muted-foreground">
         <span>100%</span>
