@@ -3,6 +3,8 @@
 //! This module defines order types, sides, statuses, and time-in-force policies
 //! used to describe and control order behavior.
 
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 use crate::orderbook::{LimitOrderOptions, MarketOrderOptions, OrderId, Price, Quantity};
@@ -40,6 +42,19 @@ pub enum TimeInForce {
     IOC,
     /// Fill-or-kill: the order must fill entirely or be canceled.
     FOK,
+}
+
+impl FromStr for TimeInForce {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "GTC" => Ok(TimeInForce::GTC),
+            "IOC" => Ok(TimeInForce::IOC),
+            "FOK" => Ok(TimeInForce::FOK),
+            _ => Err(format!("Invalid time-in-force: {}", s)),
+        }
+    }
 }
 
 /// Represents the current status of an order.

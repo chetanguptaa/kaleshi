@@ -20,6 +20,7 @@ export class MarketService {
         const newMarket = await tx.market.create({
           data: {
             name: body.name,
+            avatar: body.avatar ?? null,
             marketCategoryId: body.marketCategoryId,
             bettingStartAt: body.bettingStartAt,
             bettingEndAt: body.bettingEndAt,
@@ -61,7 +62,7 @@ export class MarketService {
     if (!market) {
       throw new BadRequestException('Market does not exist');
     }
-    if (market.status !== 'DRAFT') {
+    if (market.status !== 'DEACTIVATED') {
       throw new BadRequestException(
         `Market cannot be activated from status ${market.status}`,
       );

@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TCurrentUser } from "@/schemas/layout/schema";
-import { useCreateOrder } from "@/schemas/orders/hooks";
+import { useCanSellOrder, useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
 import { MessageCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -41,7 +41,10 @@ import {
   useMarketDataById,
   useMarketDataHistoryById,
 } from "@/schemas/market/hooks";
-import { TMarketDataHistoryByIdResponse } from "@/schemas/market/schema";
+import {
+  ETimeInForce,
+  TMarketDataHistoryByIdResponse,
+} from "@/schemas/market/schema";
 
 const TrendingMarketCard = ({
   id,
@@ -55,6 +58,8 @@ const TrendingMarketCard = ({
   const marketData = useMarketDataById(id);
   const marketDataHistory = useMarketDataHistoryById(id);
   const { mutate, isPending } = useCreateOrder();
+  const { mutate: mutateCanSellOrder, isPending: isPendingCanSellOrder } =
+    useCanSellOrder();
   const [selectedOutcome, setSelectedOutcome] = useState<IOutcome | null>(null);
   const [orderType, setOrderType] = useState<EOrderType>(EOrderType.LIMIT);
   const [orderSide, setOrderSide] = useState<EOrderSide>(EOrderSide.BUY);
@@ -68,6 +73,10 @@ const TrendingMarketCard = ({
   >([]);
   const isLoggedIn = Boolean(currentUser);
   const hasTradingAccount = Boolean(currentUser?.accountId);
+  const [canSell, setCanSell] = useState(false);
+  const [timeInForce, setTimeInForce] = useState<ETimeInForce>(
+    ETimeInForce.GTC,
+  );
 
   let mostUpvotedComment = getMostUpvotedComment(
     trendingMarket?.data?.market?.comments || [],
@@ -84,8 +93,8 @@ const TrendingMarketCard = ({
   }, [outcomes]);
 
   const timerText = useMarketTimer(
-    trendingMarket?.data?.market?.startsAt,
-    trendingMarket?.data?.market?.endsAt,
+    trendingMarket?.data?.market?.bettingStartAt,
+    trendingMarket?.data?.market?.bettingEndAt,
   );
 
   const handleMarketData = useCallback(
@@ -194,7 +203,10 @@ const TrendingMarketCard = ({
         orderType,
         quantity,
         outcomeId: selectedOutcome?.outcomeId,
-        ...(orderType === EOrderType.LIMIT && { price: limitPrice }),
+        ...(orderType === EOrderType.LIMIT && {
+          price: limitPrice,
+          timeInForce,
+        }),
       },
       {
         onSuccess: (data) => {
@@ -206,10 +218,34 @@ const TrendingMarketCard = ({
     );
   };
 
+  useEffect(() => {
+    if (
+      !selectedOutcome ||
+      orderSide === EOrderSide.BUY ||
+      !currentUser?.accountId
+    ) {
+      return;
+    }
+    mutateCanSellOrder(
+      {
+        outcomeId: selectedOutcome?.outcomeId,
+        requestedQuantity: quantity ?? 1,
+      },
+      {
+        onSuccess: (data) => {
+          if (data.success) {
+            setCanSell(data.canSell);
+          }
+        },
+      },
+    );
+  }, [orderSide, selectedOutcome?.outcomeId, currentUser?.accountId]);
+
   if (
     trendingMarket?.isLoading ||
     marketData?.isLoading ||
-    marketDataHistory?.isLoading
+    marketDataHistory?.isLoading ||
+    isPending
   ) {
     return <Loading />;
   }
@@ -336,10 +372,11 @@ const TrendingMarketCard = ({
                   Sell
                 </Button>
               </div>
-
               <Select
                 value={orderType}
-                onValueChange={(v) => setOrderType(v as EOrderType)}
+                onValueChange={(v) => {
+                  setOrderType(v as EOrderType);
+                }}
               >
                 <SelectTrigger className="w-32">
                   <SelectValue />
@@ -350,9 +387,7 @@ const TrendingMarketCard = ({
                 </SelectContent>
               </Select>
             </div>
-
-            {/* Order Form */}
-            <div className="space-y-4">
+            <div className="space-y-2">
               {orderType === EOrderType.LIMIT && (
                 <div>
                   <label className="text-sm text-muted-foreground">
@@ -366,21 +401,35 @@ const TrendingMarketCard = ({
               )}
               <div>
                 <label className="text-sm text-muted-foreground">
-                  Quantity
+                  Contracts (Quantity)
                 </label>
                 <IntegerInput value={quantity} onValueChange={setQuantity} />
               </div>
-              {orderType === EOrderType.MARKET && (
-                <div className="flex items-center justify-between text-sm text-muted-foreground border rounded-md p-2">
+              {orderType === EOrderType.LIMIT && (
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                   <span>Expiration</span>
-                  <span className="font-medium text-foreground">
-                    Good ’til cancelled
-                  </span>
+                  <Select
+                    value={timeInForce}
+                    onValueChange={(v) => setTimeInForce(v as ETimeInForce)}
+                  >
+                    <SelectTrigger className="w-[60%]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ETimeInForce.GTC}>
+                        Good til' cancelled (GTC)
+                      </SelectItem>
+                      <SelectItem value={ETimeInForce.IOC}>
+                        Immediate or cancel (IOC)
+                      </SelectItem>
+                      <SelectItem value={ETimeInForce.FOK}>
+                        Fill or kill (FOK)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               )}
             </div>
-
-            {/* CTA */}
             <div className="pt-2">
               {!isLoggedIn && (
                 <Button
@@ -429,6 +478,7 @@ const TrendingMarketCard = ({
                   onClick={handleSubmit}
                   disabled={
                     isPending ||
+                    (orderSide === EOrderSide.SELL && !canSell) ||
                     (orderType === EOrderType.MARKET && !quantity) ||
                     (orderType === EOrderType.LIMIT &&
                       (!limitPrice || !quantity))

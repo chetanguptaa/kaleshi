@@ -4,9 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
-import { TCreateOrderSchema } from './order.controller';
+import { TCanSellOrderSchema, TCreateOrderSchema } from './order.controller';
 import { RedisPublisherService } from 'src/redis/redis.publisher.service';
 import { OrderNewEvent } from 'src/redis/redis-publisher.event-types';
+import { TimeInForce } from 'generated/prisma/enums';
 
 @Injectable()
 export class OrderService {
@@ -14,6 +15,77 @@ export class OrderService {
     private readonly prismaService: PrismaService,
     private readonly redisPublisherService: RedisPublisherService,
   ) {}
+
+  async canSell(accountId: number, body: TCanSellOrderSchema) {
+    const ownedShares = await this.calculateOwnedShares(
+      +accountId,
+      body.outcomeId,
+    );
+    if (ownedShares === 0) {
+      return {
+        success: true,
+        canSell: false,
+      };
+    }
+    const lockedInOrders = await this.prismaService.order.aggregate({
+      where: {
+        accountId,
+        outcomeId: body.outcomeId,
+        side: 'Sell',
+        status: 'OPEN',
+      },
+      _sum: {
+        quantity: true,
+      },
+    });
+    const lockedShares = lockedInOrders._sum.quantity || 0;
+    const availableShares = ownedShares - lockedShares;
+    if (availableShares === 0) {
+      return {
+        success: true,
+        canSell: false,
+      };
+    }
+    if (body.requestedQuantity > availableShares) {
+      return {
+        success: true,
+        canSell: false,
+      };
+    }
+    return {
+      success: true,
+      canSell: true,
+    };
+  }
+
+  private async calculateOwnedShares(
+    accountId: number,
+    outcomeId: string,
+  ): Promise<number> {
+    const fills = await this.prismaService.fill.findMany({
+      where: {
+        order: {
+          outcomeId,
+        },
+        OR: [{ accountId }, { filledAccountId: accountId }],
+      },
+      select: {
+        quantity: true,
+        accountId: true,
+        filledAccountId: true,
+      },
+    });
+    let netShares = 0;
+    for (const fill of fills) {
+      if (fill.accountId === accountId) {
+        netShares += fill.quantity;
+      }
+      if (fill.filledAccountId === accountId) {
+        netShares -= fill.quantity;
+      }
+    }
+    return Math.max(0, netShares);
+  }
 
   async placeOrder(accountId: number, body: TCreateOrderSchema) {
     const account = await this.prismaService.account.findUnique({
@@ -23,6 +95,15 @@ export class OrderService {
     });
     if (!account) {
       throw new BadRequestException('Account does not exist');
+    }
+    if (body.side === 'Sell') {
+      const canSell = await this.canSell(accountId, {
+        outcomeId: body.outcomeId,
+        requestedQuantity: body.quantity,
+      });
+      if (!canSell.success || !canSell.canSell) {
+        throw new BadRequestException('Insufficient shares to sell');
+      }
     }
     const scaledPrice = body.price ? Math.round(body.price * 100) : 0;
     const quantity = body.quantity;
@@ -70,6 +151,7 @@ export class OrderService {
       price: scaledPrice ?? 0,
       qty_remaining: quantity,
       qty_original: quantity,
+      time_in_force: body.timeInForce ?? TimeInForce.IOC, // default IOC for market orders
     };
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {

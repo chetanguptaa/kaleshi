@@ -5,6 +5,7 @@ import {
   TCreateMarketCategorySchema,
 } from './market-category.controller';
 import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
+import { MarketStatus } from 'generated/prisma/enums';
 
 @Injectable()
 export class MarketCategoryService {
@@ -75,12 +76,20 @@ export class MarketCategoryService {
       where: { id },
       include: {
         markets: {
-          where: { isActive: true },
+          where: {
+            status: {
+              in: [MarketStatus.DRAFT, MarketStatus.OPEN],
+            },
+          },
         },
         children: {
           include: {
             markets: {
-              where: { isActive: true },
+              where: {
+                status: {
+                  in: [MarketStatus.DRAFT, MarketStatus.OPEN],
+                },
+              },
             },
           },
         },
@@ -100,7 +109,11 @@ export class MarketCategoryService {
       where: { id },
       include: {
         markets: {
-          where: { isActive: true },
+          where: {
+            status: {
+              in: [MarketStatus.DRAFT, MarketStatus.OPEN],
+            },
+          },
           include: {
             outcomes: {
               select: {
@@ -113,7 +126,11 @@ export class MarketCategoryService {
         children: {
           include: {
             markets: {
-              where: { isActive: true },
+              where: {
+                status: {
+                  in: [MarketStatus.DRAFT, MarketStatus.OPEN],
+                },
+              },
               include: {
                 outcomes: {
                   select: {

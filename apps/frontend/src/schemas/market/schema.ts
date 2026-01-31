@@ -35,8 +35,10 @@ export const marketSchema = z
   .object({
     id: z.number().int(),
     name: z.string(),
-    startsAt: z.string(),
-    endsAt: z.string(),
+    bettingStartAt: z.string(),
+    bettingEndAt: z.string(),
+    eventStartAt: z.string(),
+    eventEndAt: z.string(),
     outcomes: z.array(
       z.object({
         name: z.string(),
@@ -44,7 +46,15 @@ export const marketSchema = z
       }),
     ),
     marketCategoryId: z.number().int(),
-    isActive: z.boolean(),
+    status: z.enum([
+      "DEACTIVATED",
+      "DRAFT",
+      "OPEN",
+      "CLOSED",
+      "SETTLING",
+      "SETTLED",
+      "CANCELLED",
+    ]),
     metadata: z.json().optional().nullable(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
@@ -63,9 +73,19 @@ export const marketByIdSchema = z
     ),
     metadata: z.json().nullable().optional(),
     comments: z.array(commentSchema),
-    isActive: z.boolean(),
-    startsAt: z.string(),
-    endsAt: z.string(),
+    status: z.enum([
+      "DEACTIVATED",
+      "DRAFT",
+      "OPEN",
+      "CLOSED",
+      "SETTLING",
+      "SETTLED",
+      "CANCELLED",
+    ]),
+    bettingStartAt: z.string(),
+    bettingEndAt: z.string(),
+    eventStartAt: z.string(),
+    eventEndAt: z.string(),
   })
   .loose();
 
@@ -144,3 +164,9 @@ export type TMarketSelectionCategory = {
 export type TMarketSelection =
   | TMarketSelectionCategory
   | TMarketSelectionFilter;
+
+export enum ETimeInForce {
+  GTC = "GTC",
+  IOC = "IOC",
+  FOK = "FOK",
+}

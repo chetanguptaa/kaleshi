@@ -58,7 +58,7 @@ impl MatchingEngine {
                     account_id: AccountId(order.account_id),
                     side: order.side.clone().into(),
                     price: Price(order.price),
-                    time_in_force: Some(TimeInForce::GTC),
+                    time_in_force: Some(order.time_in_force),
                     quantity: Quantity(order.qty_original),
                 });
                 let fair_prices_and_total_volumes = self.get_fair_prices_and_total_volumes().await;
@@ -155,7 +155,7 @@ impl MatchingEngine {
                     account_id: AccountId(order.account_id),
                     side: order.side.clone().into(),
                     price: Price(order.price),
-                    time_in_force: Some(TimeInForce::GTC),
+                    time_in_force: Some(execution_report.time_in_force),
                     quantity: Quantity(order.qty_original),
                 });
             }
@@ -165,7 +165,7 @@ impl MatchingEngine {
                     account_id: AccountId(order.account_id),
                     side: order.side.clone().into(),
                     price: Price(order.price),
-                    time_in_force: Some(TimeInForce::GTC),
+                    time_in_force: Some(execution_report.time_in_force),
                     quantity: Quantity(order.qty_original),
                 });
             }
@@ -182,7 +182,7 @@ impl MatchingEngine {
             OrderType::LIMIT => {
                 let opts = LimitOrderOptions {
                     price: Price(order.price),
-                    time_in_force: Some(TimeInForce::GTC),
+                    time_in_force: Some(order.time_in_force),
                     side: order.side.clone().into(),
                     quantity: Quantity(order.qty_original),
                     post_only: Some(false),

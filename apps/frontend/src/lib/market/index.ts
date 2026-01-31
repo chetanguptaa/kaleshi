@@ -67,10 +67,10 @@ export const calculatePotentialWin = (
   fairPriceInCents: number | null | undefined,
   stakeDollars = 100,
 ) => {
-  if (fairPriceInCents == null) {
+  if (fairPriceInCents == null || fairPriceInCents === 0) {
     return stakeDollars;
   }
-  if (fairPriceInCents <= 0) {
+  if (fairPriceInCents < 0) {
     return 0;
   }
   const probability = fairPriceInCents / 100;

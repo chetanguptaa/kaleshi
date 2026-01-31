@@ -155,7 +155,7 @@ export default function RootLayout({
 
   return (
     <div className="bg-background">
-      <div className="flex-1 overflow-hidden pb-20">{children}</div>
+      <div className="pb-20">{children}</div>
       <Footer />
     </div>
   );

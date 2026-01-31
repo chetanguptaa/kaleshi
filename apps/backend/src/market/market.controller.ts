@@ -47,6 +47,7 @@ const createMarketSchema = z
         }),
       )
       .min(2),
+    avatar: z.string().optional(),
     metadata: z.json().optional(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
@@ -64,14 +65,11 @@ const createMarketSchema = z
     message: 'bettingEndAt must be after bettingStartAt',
     path: ['bettingEndAt'],
   })
-  .refine((data) => data.bettingEndAt <= data.eventStartAt, {
-    message: 'bettingEndAt must be before or at eventStartAt',
-    path: ['bettingEndAt'],
-  })
   .refine((data) => data.eventStartAt < data.eventEndAt, {
     message: 'eventEndAt must be after eventStartAt',
     path: ['eventEndAt'],
   });
+
 export type TCreateMarketSchema = z.infer<typeof createMarketSchema>;
 
 @Controller('market')

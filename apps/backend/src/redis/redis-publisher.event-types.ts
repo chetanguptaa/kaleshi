@@ -1,4 +1,4 @@
-import { OrderSide, OrderType } from 'generated/prisma/enums';
+import { OrderSide, OrderType, TimeInForce } from 'generated/prisma/enums';
 
 export type OrderNewEvent = {
   type: 'order.new';
@@ -11,6 +11,7 @@ export type OrderNewEvent = {
   price: number;
   qty_remaining: number;
   qty_original: number;
+  time_in_force?: TimeInForce;
 };
 
 export type OrderCancelledEvent = {

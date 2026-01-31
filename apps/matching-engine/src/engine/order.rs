@@ -1,6 +1,6 @@
 use crate::{
     error::{EngineError, EngineResult},
-    orderbook::Side,
+    orderbook::{Side, TimeInForce},
 };
 use serde::{Deserialize, Serialize};
 use std::{fmt, str::FromStr};
@@ -86,6 +86,7 @@ pub struct OrderWire {
     pub price: String,
     pub qty_remaining: String,
     pub qty_original: String,
+    pub time_in_force: String,
 }
 
 /// Internal order representation with validated fields
@@ -100,6 +101,7 @@ pub struct Order {
     pub price: u64, // In smallest unit (e.g., cents). 0 for pure MARKET orders
     pub qty_remaining: u64,
     pub qty_original: u64,
+    pub time_in_force: TimeInForce,
 }
 
 impl Order {
@@ -133,6 +135,12 @@ impl Order {
         if matches!(self.order_type, OrderType::LIMIT) && self.price == 0 {
             return Err(EngineError::OrderValidation(
                 "LIMIT orders must have a price greater than 0".to_string(),
+            ));
+        }
+        // Validate time in force for MARKET orders
+        if matches!(self.order_type, OrderType::MARKET) && self.time_in_force == TimeInForce::GTC {
+            return Err(EngineError::OrderValidation(
+                "MARKET orders cannot have GTC time in force".to_string(),
             ));
         }
         // Price should be reasonable (add your own bounds)
@@ -185,7 +193,12 @@ impl TryFrom<OrderWire> for Order {
                 w.qty_original, e
             ))
         })?;
-
+        let time_in_force = w.time_in_force.parse::<TimeInForce>().map_err(|e| {
+            EngineError::OrderValidation(format!(
+                "Invalid time_in_force '{}': {}",
+                w.time_in_force, e
+            ))
+        })?;
         let order = Order {
             market_id,
             outcome_name: w.outcome_name,
@@ -196,6 +209,7 @@ impl TryFrom<OrderWire> for Order {
             price,
             qty_remaining,
             qty_original,
+            time_in_force,
         };
 
         // Validate the constructed order

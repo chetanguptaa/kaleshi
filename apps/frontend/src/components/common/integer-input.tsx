@@ -60,7 +60,7 @@ export function IntegerInput({
 
   return (
     <Input
-      placeholder={String(min)}
+      placeholder={"0"}
       inputMode="numeric"
       value={display}
       onChange={handleChange}

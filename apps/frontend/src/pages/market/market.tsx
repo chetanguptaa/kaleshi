@@ -4,7 +4,7 @@ import {
   MarketDataSocketEvent,
 } from "@/lib/market";
 import { useCurrentUser } from "@/schemas/layout/hooks";
-import { useCreateOrder } from "@/schemas/orders/hooks";
+import { useCanSellOrder, useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
@@ -41,19 +41,23 @@ import {
   useMarketDataHistoryById,
 } from "@/schemas/market/hooks";
 import {
+  ETimeInForce,
   TBookDepthByOutcomeIdResponse,
   TMarketDataHistoryByIdResponse,
 } from "@/schemas/market/schema";
 import { OrderBook } from "@/components/common/orderbook";
+import { CommentPreview } from "./comments/preview";
 
 export default function Market() {
   const currentUser = useCurrentUser();
   const params = useParams();
   const id = Number(params.id);
-  const trendingMarket = useMarketById(id);
+  const market = useMarketById(id);
   const marketData = useMarketDataById(id);
   const marketDataHistory = useMarketDataHistoryById(id);
   const { mutate, isPending } = useCreateOrder();
+  const { mutate: mutateCanSellOrder, isPending: isPendingCanSellOrder } =
+    useCanSellOrder();
   const [selectedOutcome, setSelectedOutcome] = useState<IOutcome | null>(null);
   const [orderType, setOrderType] = useState<EOrderType>(EOrderType.LIMIT);
   const [orderSide, setOrderSide] = useState<EOrderSide>(EOrderSide.BUY);
@@ -70,9 +74,13 @@ export default function Market() {
     bids: [],
     asks: [],
   });
-  const isLoggedIn = Boolean(currentUser);
+  const isLoggedIn = Boolean(currentUser?.data?.user);
   const hasTradingAccount = Boolean(currentUser?.data?.user?.accountId);
   const bookDepth = useBookDepthByOutcomeId(selectedOutcome?.outcomeId);
+  const [canSell, setCanSell] = useState(false);
+  const [timeInForce, setTimeInForce] = useState<ETimeInForce>(
+    ETimeInForce.GTC,
+  );
 
   const outcomeNameById = useMemo(() => {
     const map: Record<string, string> = {};
@@ -83,8 +91,8 @@ export default function Market() {
   }, [outcomes]);
 
   const timerText = useMarketTimer(
-    trendingMarket?.data?.market?.startsAt,
-    trendingMarket?.data?.market?.endsAt,
+    market?.data?.market?.bettingStartAt,
+    market?.data?.market?.bettingEndAt,
   );
 
   const handleMarketData = useCallback(
@@ -165,7 +173,7 @@ export default function Market() {
   useEffect(() => {
     if (!bookDepth.isSuccess) return;
     setLiveBookDepth(bookDepth.data);
-  }, [bookDepth.isSuccess]);
+  }, [bookDepth.isSuccess, selectedOutcome?.outcomeId]);
 
   useEffect(() => {
     if (!marketData?.isSuccess) return;
@@ -214,7 +222,10 @@ export default function Market() {
         orderType,
         quantity,
         outcomeId: selectedOutcome?.outcomeId,
-        ...(orderType === EOrderType.LIMIT && { price: limitPrice }),
+        ...(orderType === EOrderType.LIMIT && {
+          price: limitPrice,
+          timeInForce,
+        }),
       },
       {
         onSuccess: (data) => {
@@ -226,30 +237,57 @@ export default function Market() {
     );
   };
 
+  useEffect(() => {
+    if (
+      !selectedOutcome ||
+      orderSide === EOrderSide.BUY ||
+      !currentUser?.data?.user?.accountId
+    ) {
+      return;
+    }
+    mutateCanSellOrder(
+      {
+        outcomeId: selectedOutcome?.outcomeId,
+        requestedQuantity: quantity ?? 1,
+      },
+      {
+        onSuccess: (data) => {
+          if (data.success) {
+            setCanSell(data.canSell);
+          }
+        },
+      },
+    );
+  }, [
+    orderSide,
+    selectedOutcome?.outcomeId,
+    currentUser?.data?.user?.accountId,
+  ]);
+
   if (
-    trendingMarket?.isLoading ||
+    market?.isLoading ||
     marketData?.isLoading ||
     marketDataHistory?.isLoading
   ) {
     return <Loading />;
   }
 
-  if (trendingMarket?.isSuccess && selectedOutcome) {
+  if (market?.isSuccess && selectedOutcome) {
     return (
       <RootLayout isPrivate={false} currentUser={currentUser.data || null}>
-        <div className="bg-background min-h-screen flex flex-col overflow-hidden">
+        <div className="bg-background min-h-screen flex flex-col">
           <Header
             selectedTab="market"
             currentUser={currentUser.data?.user || null}
             noSearchMarket={true}
           />
-          <div className="bg-card rounded-lg px-4 md:px-6 w-[94%] mx-auto flex-1 overflow-hidden">
+          <div className="bg-card rounded-lg px-4 md:px-6 w-[94%] mx-auto flex-1">
             <div className="p-6 grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-8 h-full">
               <div className="space-y-6 overflow-y-auto pr-2 scrollbar-thin">
                 <div className="flex items-start gap-4">
                   <div className="flex-1">
                     <h2 className="text-2xl font-bold text-foreground mt-1">
-                      {trendingMarket.data.market.name}
+                      {market.data.market.name}
                     </h2>
                   </div>
                 </div>
@@ -283,7 +321,7 @@ export default function Market() {
                   defaultValue={selectedOutcome?.outcomeId ?? null}
                   type="single"
                   collapsible
-                  className="pt-4 space-y-2"
+                  className="space-y-2"
                 >
                   {outcomes.map((outcome) => (
                     <AccordionItem
@@ -312,146 +350,195 @@ export default function Market() {
                   ))}
                 </Accordion>
               </div>
-              <Card className="w-full max-w-md lg:sticky lg:top-6 self-start">
-                <CardHeader>
-                  <CardTitle>{selectedOutcome?.outcomeName}</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Buy / Sell + Order Type */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex gap-1">
-                      <Button
-                        size="sm"
-                        className="rounded-3xl"
-                        variant={
-                          orderSide === EOrderSide.BUY ? "default" : "outline"
-                        }
-                        onClick={() => setOrderSide(EOrderSide.BUY)}
+              <div className="flex flex-col gap-5 lg:sticky lg:top-24 self-start">
+                <Card className="w-full max-w-md self-start space-y-4">
+                  <CardHeader className="pb-2 pt-4">
+                    <CardTitle>{selectedOutcome?.outcomeName}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1">
+                    {/* Buy / Sell + Order Type */}
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          className="rounded-3xl"
+                          variant={
+                            orderSide === EOrderSide.BUY ? "default" : "outline"
+                          }
+                          onClick={() => setOrderSide(EOrderSide.BUY)}
+                        >
+                          Buy
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={
+                            orderSide === EOrderSide.SELL
+                              ? "default"
+                              : "outline"
+                          }
+                          className="rounded-3xl"
+                          onClick={() => setOrderSide(EOrderSide.SELL)}
+                        >
+                          Sell
+                        </Button>
+                      </div>
+                      <Select
+                        value={orderType}
+                        onValueChange={(v) => setOrderType(v as EOrderType)}
                       >
-                        Buy
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant={
-                          orderSide === EOrderSide.SELL ? "default" : "outline"
-                        }
-                        className="rounded-3xl"
-                        onClick={() => setOrderSide(EOrderSide.SELL)}
-                      >
-                        Sell
-                      </Button>
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={EOrderType.MARKET}>
+                            Market
+                          </SelectItem>
+                          <SelectItem value={EOrderType.LIMIT}>
+                            Limit
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
-                    <Select
-                      value={orderType}
-                      onValueChange={(v) => setOrderType(v as EOrderType)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={EOrderType.MARKET}>
-                          Market
-                        </SelectItem>
-                        <SelectItem value={EOrderType.LIMIT}>Limit</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-4">
-                    {orderType === EOrderType.LIMIT && (
+                    <div className="space-y-2">
+                      {orderType === EOrderType.LIMIT && (
+                        <div>
+                          <label className="text-sm text-muted-foreground">
+                            Limit price ($)
+                          </label>
+                          <DecimalInput
+                            value={limitPrice}
+                            onValueChange={setLimitPrice}
+                          />
+                        </div>
+                      )}
+
                       <div>
                         <label className="text-sm text-muted-foreground">
-                          Limit price ($)
+                          Contracts (Quantity)
                         </label>
-                        <DecimalInput
-                          value={limitPrice}
-                          onValueChange={setLimitPrice}
+                        <IntegerInput
+                          value={quantity}
+                          onValueChange={setQuantity}
                         />
                       </div>
-                    )}
-
-                    <div>
-                      <label className="text-sm text-muted-foreground">
-                        Quantity
-                      </label>
-                      <IntegerInput
-                        value={quantity}
-                        onValueChange={setQuantity}
-                      />
+                      {orderType === EOrderType.LIMIT && (
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <span>Expiration</span>
+                          <Select
+                            value={timeInForce}
+                            onValueChange={(v) =>
+                              setTimeInForce(v as ETimeInForce)
+                            }
+                          >
+                            <SelectTrigger className="w-[60%]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={ETimeInForce.GTC}>
+                                Good til' cancelled (GTC)
+                              </SelectItem>
+                              <SelectItem value={ETimeInForce.IOC}>
+                                Immediate or cancel (IOC)
+                              </SelectItem>
+                              <SelectItem value={ETimeInForce.FOK}>
+                                Fill or kill (FOK)
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
+                    <div className="pt-2">
+                      {!isLoggedIn && (
+                        <Button
+                          className="w-full"
+                          asChild
+                          style={{
+                            backgroundColor:
+                              selectedOutcome?.outcomeColor || "default",
+                            color:
+                              selectedOutcome?.outcomeColor === "default"
+                                ? "black"
+                                : "white",
+                          }}
+                        >
+                          <Link to="/signup">Sign up to trade</Link>
+                        </Button>
+                      )}
 
-                    {orderType === EOrderType.MARKET && (
-                      <div className="flex items-center justify-between text-sm text-muted-foreground border rounded-md p-2">
-                        <span>Expiration</span>
-                        <span className="font-medium text-foreground">
-                          Good ’til cancelled
-                        </span>
-                      </div>
-                    )}
-                  </div>
+                      {isLoggedIn && !hasTradingAccount && (
+                        <Button
+                          className="w-full"
+                          asChild
+                          style={{
+                            backgroundColor:
+                              selectedOutcome?.outcomeColor || "default",
+                            color:
+                              selectedOutcome?.outcomeColor === "default"
+                                ? "black"
+                                : "white",
+                          }}
+                        >
+                          <Link to="/create-trading-account">
+                            Create trading account
+                          </Link>
+                        </Button>
+                      )}
 
-                  {/* CTA */}
-                  <div className="pt-2">
-                    {!isLoggedIn && (
-                      <Button
-                        className="w-full"
-                        asChild
-                        style={{
-                          backgroundColor:
-                            selectedOutcome?.outcomeColor || "default",
-                          color:
-                            selectedOutcome?.outcomeColor === "default"
-                              ? "black"
-                              : "white",
-                        }}
-                      >
-                        <Link to="/signup">Sign up to trade</Link>
-                      </Button>
-                    )}
-
-                    {isLoggedIn && !hasTradingAccount && (
-                      <Button
-                        className="w-full"
-                        asChild
-                        style={{
-                          backgroundColor:
-                            selectedOutcome?.outcomeColor || "default",
-                          color:
-                            selectedOutcome?.outcomeColor === "default"
-                              ? "black"
-                              : "white",
-                        }}
-                      >
-                        <Link to="/create-trading-account">
-                          Create trading account
-                        </Link>
-                      </Button>
-                    )}
-
-                    {isLoggedIn && hasTradingAccount && (
-                      <Button
-                        className="w-full"
-                        style={{
-                          backgroundColor:
-                            selectedOutcome?.outcomeColor || "default",
-                          color:
-                            selectedOutcome?.outcomeColor === "default"
-                              ? "black"
-                              : "white",
-                        }}
-                        onClick={handleSubmit}
-                        disabled={
-                          isPending ||
-                          (orderType === EOrderType.MARKET && !quantity) ||
-                          (orderType === EOrderType.LIMIT &&
-                            (!limitPrice || !quantity))
-                        }
-                      >
-                        {orderSide === EOrderSide.BUY ? "Buy" : "Sell"}
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
+                      {isLoggedIn && hasTradingAccount && (
+                        <Button
+                          className="w-full"
+                          style={{
+                            backgroundColor:
+                              selectedOutcome?.outcomeColor || "default",
+                            color:
+                              selectedOutcome?.outcomeColor === "default"
+                                ? "black"
+                                : "white",
+                          }}
+                          onClick={handleSubmit}
+                          disabled={
+                            isPending ||
+                            (orderSide === EOrderSide.SELL && !canSell) ||
+                            (orderType === EOrderType.MARKET && !quantity) ||
+                            (orderType === EOrderType.LIMIT &&
+                              (!limitPrice || !quantity))
+                          }
+                        >
+                          {orderSide === EOrderSide.BUY ? "Buy" : "Sell"}
+                        </Button>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+                <CommentPreview
+                  // comments={[
+                  //   {
+                  //     id: "1",
+                  //     text: "Real will win, I just have a feeling that they will win and ofc they have mbappe, rodrygo",
+                  //     timestamp: new Date(),
+                  //     user: {
+                  //       name: "John Doe",
+                  //       avatar: "https://example.com/avatar.jpg",
+                  //       initials: "JD",
+                  //     },
+                  //   },
+                  //   {
+                  //     id: "2",
+                  //     text: "Barcelona will win",
+                  //     timestamp: new Date(),
+                  //     user: {
+                  //       name: "John Doe",
+                  //       avatar: "https://example.com/avatar.jpg",
+                  //       initials: "JD",
+                  //     },
+                  //   },
+                  // ]}
+                  comments={market?.data?.market?.comments || []}
+                  onShowMore={() => {}}
+                  maxPreview={4}
+                />
+              </div>
             </div>
           </div>
         </div>

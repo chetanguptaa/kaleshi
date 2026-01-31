@@ -37,8 +37,6 @@ export default function DashboardPage() {
     ? markets.data.markets[0]
     : null;
 
-  console.log("markets ", markets.data);
-
   if (
     marketCategories?.isLoading ||
     markets?.isLoading ||
@@ -59,7 +57,7 @@ export default function DashboardPage() {
           <div className="px-4 md:px-6 w-[90%] mx-auto shrink-0">
             <div className="flex gap-6 overflow-x-auto">
               <MarketCategoryTabs
-                marketCategories={marketCategories.data.marketCategories}
+                marketCategories={marketCategories?.data?.marketCategories}
                 selection={selection}
                 onSelect={setSelection}
                 setSubSelection={setSubSelection}
@@ -80,21 +78,21 @@ export default function DashboardPage() {
                 For you
               </button>
               {selection.type === "category" &&
-                marketCategories.data.marketCategories
-                  .find((mc) => mc.id === selection.categoryId)
-                  .children.map((child: any) => (
+                marketCategories?.data?.marketCategories
+                  ?.find((mc) => mc.id === selection?.categoryId)
+                  ?.children.map((child: any) => (
                     <button
                       key={child.id}
                       onClick={() => {
                         setSubSelection({
                           type: "category",
-                          categoryId: child.id,
+                          categoryId: child?.id,
                         });
                       }}
                       onMouseEnter={() =>
                         prefetch({
                           type: "category",
-                          categoryId: child.id,
+                          categoryId: child?.id,
                         })
                       }
                       className={
@@ -111,14 +109,14 @@ export default function DashboardPage() {
           <div className="flex-1 h-[calc(100vh-4rem)] overflow-y-auto w-[90%] p-2 md:p-3 px-4 md:px-6  mx-auto">
             {trendingMarket && (
               <TrendingMarketCard
-                id={trendingMarket.id}
+                id={trendingMarket?.id}
                 currentUser={currentUser?.data?.user || null}
               />
             )}
             <section className="mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-24">
-                {markets.data.markets.slice(1).map((market) => (
-                  <MarketCard key={market.id} market={market} />
+                {markets?.data?.markets?.slice(1).map((market) => (
+                  <MarketCard key={market?.id} market={market} />
                 ))}
               </div>
             </section>
