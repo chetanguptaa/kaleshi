@@ -25,11 +25,8 @@ export class OrderService {
       throw new BadRequestException('Account does not exist');
     }
     const scaledPrice = body.price ? Math.round(body.price * 100) : 0;
-    const scaledQuantity = Math.round(body.quantity * 100);
-    if (
-      body.orderType === 'LIMIT' &&
-      account.coins < Math.round((scaledQuantity * scaledPrice) / 100)
-    ) {
+    const quantity = body.quantity;
+    if (body.orderType === 'LIMIT' && account.coins < scaledPrice * quantity) {
       throw new BadRequestException('Not enough balance available');
     }
     const outcome = await this.prismaService.outcome.findUnique({
@@ -42,7 +39,7 @@ export class OrderService {
     }
     let orderCost = 0;
     if (body.orderType === 'LIMIT') {
-      orderCost = Math.round((scaledPrice * scaledQuantity) / 100);
+      orderCost = scaledPrice * quantity;
     } else if (body.orderType === 'MARKET') {
       const fairPrice = await this.getFairPrice(body.outcomeId);
       if (!fairPrice) {
@@ -50,7 +47,7 @@ export class OrderService {
           'Fair price not available for this outcome',
         );
       }
-      orderCost = Math.round((fairPrice * scaledQuantity) / 100);
+      orderCost = fairPrice * quantity;
     }
     const available = account.coins - account.reservedCoins;
     if (orderCost > available) {
@@ -71,8 +68,8 @@ export class OrderService {
       side: body.side,
       order_type: body.orderType,
       price: scaledPrice ?? 0,
-      qty_remaining: scaledQuantity,
-      qty_original: scaledQuantity,
+      qty_remaining: quantity,
+      qty_original: quantity,
     };
     await this.redisPublisherService.pushOrderCommand(eventData);
     return {

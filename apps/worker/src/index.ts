@@ -48,41 +48,41 @@ async function processMessage(redis: any, id: string, payload: string) {
     console.log("event type ", event.type);
     switch (event.type) {
       case "book.depth": {
-        await handleBookDepth(event);
+        handleBookDepth(event);
         break;
       }
       case "market.data": {
-        await handleMarketData(event);
+        handleMarketData(event);
         break;
       }
       case "order.placed": {
-        await handleOrderPlaced(event);
+        handleOrderPlaced(event);
         break;
       }
       case "order.filled": {
-        await handleOrderFilled(event);
+        handleOrderFilled(event);
         break;
       }
       case "order.cancelled": {
-        await handleOrderCancelled(event);
+        handleOrderCancelled(event);
         break;
       }
       case "order.partial": {
-        await handleOrderPartial(event);
+        handleOrderPartial(event);
         break;
       }
       case "order.rejected": {
-        await handleOrderRejected(event);
+        handleOrderRejected(event);
         break;
       }
       case "trade": {
-        await handleTrade(event);
+        handleTrade(event);
         break;
       }
     }
+    await redis.publish(OUTPUT_CHANNEL, payload);
     await redis.xAck(INPUT_STREAM, GROUP, id);
     await redis.xAdd(OUTPUT_STREAM, "*", { payload });
-    await redis.publish(OUTPUT_CHANNEL, payload);
   } catch (err) {
     console.error("Processing failed", err);
   }

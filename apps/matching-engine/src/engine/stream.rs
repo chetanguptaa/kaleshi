@@ -265,7 +265,7 @@ async fn process_single_entry(
 }
 
 /// Handle an individual message based on its type
-async fn handle_message(
+pub async fn handle_message(
     redis_conn: &mut Connection,
     engine: &mut MatchingEngine,
     payload: &SerdeJsonValue,
@@ -288,26 +288,31 @@ async fn handle_new_order(
     payload: &SerdeJsonValue,
     view_emitter: &mut ViewEmitter,
 ) -> EngineResult<()> {
+    if !view_emitter.is_replay_mode {
+        append_events_to_ledger(redis_conn, payload.clone())
+            .await
+            .map_err(|e| EngineError::Ledger(format!("Failed to append to ledger: {}", e)))?;
+    }
     let wire =
         serde_json::from_value::<OrderWire>(payload.clone()).map_err(|e| EngineError::Json(e))?;
     let order = Order::try_from(wire)
         .map_err(|e| EngineError::OrderValidation(format!("Order validation failed: {}", e)))?;
-    let (publish_events, orderbook, snapshots) = engine.order_execution(redis_conn, &order).await;
-    append_events_to_ledger(redis_conn, &snapshots)
-        .await
-        .map_err(|e| EngineError::Ledger(format!("Failed to append to ledger: {}", e)))?;
+    let (publish_events, orderbook, fair_prices_and_total_volumes) =
+        engine.order_execution(redis_conn, &order).await;
     let book_depth = orderbook.depth(None);
-    view_emitter
-        .emit_book_depth(&order.outcome_id, book_depth)
-        .await
-        .map_err(|e| EngineError::ViewEmission(format!("Failed to emit book depth: {}", e)))?;
-    view_emitter
-        .emit_market_data(&order.market_id, &snapshots)
-        .await
-        .map_err(|e| EngineError::ViewEmission(format!("Failed to emit market data: {}", e)))?;
-    view_emitter
-        .emit_events(publish_events)
-        .await
-        .map_err(|e| EngineError::ViewEmission(format!("Failed to emit events: {}", e)))?;
+    if !view_emitter.is_replay_mode {
+        view_emitter
+            .emit_book_depth(&order.outcome_id, book_depth)
+            .await
+            .map_err(|e| EngineError::ViewEmission(format!("Failed to emit book depth: {}", e)))?;
+        view_emitter
+            .emit_market_data(&order.market_id, &fair_prices_and_total_volumes)
+            .await
+            .map_err(|e| EngineError::ViewEmission(format!("Failed to emit market data: {}", e)))?;
+        view_emitter
+            .emit_events(publish_events)
+            .await
+            .map_err(|e| EngineError::ViewEmission(format!("Failed to emit events: {}", e)))?;
+    }
     Ok(())
 }

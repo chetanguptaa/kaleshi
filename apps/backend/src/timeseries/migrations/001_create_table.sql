@@ -5,7 +5,8 @@ CREATE TABLE order_book_depth (
   outcome_id  UUID NOT NULL,
   side        order_side NOT NULL,
   price       NUMERIC(18,8) NOT NULL,
-  quantity    NUMERIC(18,8) NOT NULL
+  quantity    NUMERIC(18,8) NOT NULL,
+  is_empty    BOOLEAN DEFAULT false
 );
 
 CREATE TABLE market_data (

@@ -1,15 +1,17 @@
 use crate::{
-    engine::engine::MatchingEngine,
+    engine::{engine::MatchingEngine, stream::handle_message},
     error::{EngineError, EngineResult},
-    orderbook::Snapshot,
+    infra::view_emitter::ViewEmitter,
 };
-use redis::{AsyncCommands, Value, streams::StreamReadReply};
+use redis::{AsyncCommands, streams::StreamReadReply};
+use serde_json::Value;
 
 const LEDGER_STREAM: &str = "engine.ledger";
 
 pub async fn replay_ledger(
     redis: &mut redis::aio::Connection,
     engine: &mut MatchingEngine,
+    mut view_emitter: ViewEmitter,
 ) -> EngineResult<()> {
     let mut last_id = "0-0".to_string();
     loop {
@@ -23,7 +25,7 @@ pub async fn replay_ledger(
                     EngineError::MissingField("ledger entry missing payload".to_string())
                 })?;
                 let payload = match payload_value {
-                    Value::Data(bytes) => std::str::from_utf8(bytes).map_err(|e| {
+                    redis::Value::Data(bytes) => std::str::from_utf8(bytes).map_err(|e| {
                         EngineError::StreamProcessing(format!("payload is not valid UTF-8: {}", e))
                     })?,
                     _ => {
@@ -33,10 +35,11 @@ pub async fn replay_ledger(
                     }
                 };
                 dbg!(&payload);
-                let snapshots: Vec<(String, Snapshot)> = serde_json::from_str(payload)?;
-                engine.apply_snapshots(snapshots).map_err(|e| {
-                    EngineError::Snapshot(format!("failed to apply snapshots from ledger: {}", e))
-                })?;
+                let payload: Value = serde_json::from_str(payload)?;
+                handle_message(redis, engine, &payload, &mut view_emitter).await?;
+                // engine.apply_snapshots(snapshots).map_err(|e| {
+                //     EngineError::Snapshot(format!("failed to apply snapshots from ledger: {}", e))
+                // })?;
                 last_id = id.id;
             }
         }

@@ -51,21 +51,28 @@ async fn run_engine() -> EngineResult<()> {
         .get_async_connection()
         .await
         .map_err(|e| EngineError::Configuration(format!("Failed to connect to Redis: {}", e)))?;
-    let mut engine = MatchingEngine::new();
-    info!("Starting ledger replay...");
-    replay_ledger(&mut redis_conn, &mut engine)
-        .await
-        .map_err(|e| EngineError::Ledger(format!("Ledger replay failed: {}", e)))?;
-    let stats = engine.stats();
-    info!(
-        "Ledger replay completed - {} order books restored",
-        stats.total_books
-    );
+    {
+        info!("Starting ledger replay...");
+        let view_emitter_conn = redis_client.get_async_connection().await.map_err(|e| {
+            EngineError::Configuration(format!("Failed to create view emitter connection: {}", e))
+        })?;
+        let mut engine = MatchingEngine::new(true);
+        let view_emitter = ViewEmitter::new(view_emitter_conn, true);
+        replay_ledger(&mut redis_conn, &mut engine, view_emitter)
+            .await
+            .map_err(|e| EngineError::Ledger(format!("Ledger replay failed: {}", e)))?;
+        let stats = engine.stats();
+        info!(
+            "Ledger replay completed - {} order books restored",
+            stats.total_books
+        );
+    }
     let view_emitter_conn = redis_client.get_async_connection().await.map_err(|e| {
         EngineError::Configuration(format!("Failed to create view emitter connection: {}", e))
     })?;
-    let view_emitter = ViewEmitter::new(view_emitter_conn);
+    let view_emitter = ViewEmitter::new(view_emitter_conn, false);
     info!("View emitter initialized");
+    let engine = MatchingEngine::new(false);
     info!("Starting command stream processing...");
     start_command_stream_loop(config.redis_url, engine, view_emitter)
         .await
@@ -77,14 +84,13 @@ async fn run_engine() -> EngineResult<()> {
 #[derive(Debug, Clone)]
 struct AppConfig {
     redis_url: String,
-    engine_id: String,
 }
 
 fn load_configuration() -> EngineResult<AppConfig> {
     let redis_url = env::var("REDIS_URL").map_err(|_| {
         EngineError::Configuration("REDIS_URL environment variable is not set".to_string())
     })?;
-    let engine_id = env::var("ENGINE_ID").unwrap_or_else(|_| {
+    env::var("ENGINE_ID").unwrap_or_else(|_| {
         let default = "engine-1".to_string();
         warn!("ENGINE_ID not set, using default: {}", default);
         default
@@ -94,10 +100,7 @@ fn load_configuration() -> EngineResult<AppConfig> {
             "REDIS_URL must start with redis:// or rediss://".to_string(),
         ));
     }
-    Ok(AppConfig {
-        redis_url,
-        engine_id,
-    })
+    Ok(AppConfig { redis_url })
 }
 
 fn create_redis_client(redis_url: &str) -> EngineResult<redis::Client> {

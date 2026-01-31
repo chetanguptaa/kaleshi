@@ -13,4 +13,4 @@ pub use enums::{OrderStatus, OrderType, Side, TimeInForce};
 pub use errors::OrderBookError;
 pub use journal::{JournalLog, Snapshot};
 pub use order::{LimitOrderOptions, MarketOrderOptions, OrderId, Price, Quantity};
-pub use report::{ExecutionReport, FillReport};
+pub use report::ExecutionReport;

@@ -6,6 +6,19 @@ export class OutcomeService {
   constructor(private readonly timeseriesService: TimeseriesService) {}
 
   async getBookDepth(outcomeId: string) {
+    const latestBookDepthSql = `
+        SELECT is_empty
+        FROM order_book_depth
+        WHERE outcome_id = $1
+        ORDER BY time DESC
+        LIMIT 1
+      `;
+    const latest = await this.timeseriesService.query(latestBookDepthSql, [
+      outcomeId,
+    ]);
+    if (latest.rows.length === 0 || latest.rows[0].is_empty) {
+      return { success: true, bids: [], asks: [] };
+    }
     const sql = `
       SELECT
         side,

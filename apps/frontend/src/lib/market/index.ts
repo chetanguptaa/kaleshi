@@ -1,4 +1,4 @@
-import { TCommentSchema } from "@/schemas/dashboard/schema";
+import { TCommentSchema } from "@/schemas/market/schema";
 
 export interface IOutcome {
   outcomeId: string;
@@ -55,9 +55,18 @@ export function getMostUpvotedComment(comments: TCommentSchema[]) {
   return mostUpvotedComment;
 }
 
-export const calculatePotentialWin = (price?: number) => {
-  if (!price || price <= 0) return 0;
-  return Math.round(10000 / price);
+export const calculatePotentialWin = (
+  fairPriceInCents: number | null | undefined,
+  stakeDollars = 100,
+) => {
+  if (fairPriceInCents == null) {
+    return stakeDollars;
+  }
+  if (fairPriceInCents <= 0) {
+    return 0;
+  }
+  const probability = fairPriceInCents / 100;
+  return Math.round(stakeDollars / probability);
 };
 
 export const formatDate = (iso: string) =>

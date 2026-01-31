@@ -1,4 +1,3 @@
-import { OrderSide } from "generated/prisma/enums";
 import { prisma } from "../prisma";
 import { TradeEvent } from "../types/index";
 
@@ -27,19 +26,19 @@ export async function handleTrade(event: TradeEvent) {
         quantity: event.quantity,
       },
     });
-    const tradeCost = Math.round((event.price * event.quantity) / 100);
+    const tradeCost = event.price * event.quantity;
     await tx.account.update({
       where: { id: event.account_id },
       data: {
-        coins: { decrement: tradeCost },
-        reservedCoins: { decrement: tradeCost },
+        coins: { decrement: tradeCost }, // Pay for the trade
+        reservedCoins: { decrement: tradeCost }, // Unreserve
       },
     });
     await tx.account.update({
       where: { id: event.filled_account_id },
       data: {
-        coins: { increment: tradeCost },
-        reservedCoins: { decrement: tradeCost },
+        coins: { increment: tradeCost }, // Receive payment
+        reservedCoins: { decrement: tradeCost }, // Unreserve
       },
     });
   });

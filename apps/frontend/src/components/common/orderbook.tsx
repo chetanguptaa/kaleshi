@@ -2,8 +2,8 @@ import { TBookDepthByOutcomeIdResponse } from "@/schemas/market/schema";
 
 export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
   const maxTotal = Math.max(
-    ...bookDepth?.bids?.map((b) => b[0] * b[1]),
-    ...bookDepth?.asks?.map((a) => a[0] * a[1]),
+    ...bookDepth?.bids?.map((b) => (b[0] * b[1]) / 100),
+    ...bookDepth?.asks?.map((a) => (a[0] * a[1]) / 100),
   );
   return (
     <div className="glass-card p-5 animate-slide-up">
@@ -25,7 +25,7 @@ export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
                   ${(bid[0] / 100)?.toFixed(2)}
                 </span>
                 <span className="relative font-mono text-muted-foreground">
-                  {(bid[1] / 100)?.toLocaleString()}
+                  {bid[1]?.toLocaleString()}
                 </span>
               </div>
             ))}
@@ -47,7 +47,7 @@ export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
                   ${(ask[0] / 100)?.toFixed(2)}
                 </span>
                 <span className="relative font-mono text-muted-foreground">
-                  {(ask[1] / 100)?.toLocaleString()}
+                  {ask[1]?.toLocaleString()}
                 </span>
               </div>
             ))}

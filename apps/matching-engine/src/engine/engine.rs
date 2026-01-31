@@ -1,30 +1,32 @@
 use super::order::Order;
 use crate::engine::{order::OrderType, publish_events::PublishEngineEvent};
-use crate::error::{EngineError, EngineResult};
+use crate::error::EngineError;
 use crate::orderbook::order::AccountId;
 use crate::orderbook::{
-    ExecutionReport, LimitOrderOptions, MarketOrderOptions, OrderBook, OrderBookBuilder,
-    OrderStatus, Price, Quantity, Snapshot, TimeInForce,
+    ExecutionReport, LimitOrderOptions, MarketOrderOptions, OrderBook, OrderBookBuilder, OrderId,
+    OrderStatus, Price, Quantity, TimeInForce,
 };
 use redis::aio::Connection;
 use redis::{AsyncCommands, RedisError};
-use std::collections::HashMap;
-use tracing::{debug, error, info};
+use std::collections::BTreeMap;
+use tracing::{debug, info};
 use uuid::Uuid;
 
 pub struct MatchingEngine {
-    pub books: HashMap<String, OrderBook>,
-    pub fair_prices: HashMap<String, Price>,
-    pub total_outcome_volumes: HashMap<String, Price>, // outcomeId -> u64
+    pub books: BTreeMap<String, OrderBook>,
+    pub fair_prices: BTreeMap<String, Price>,
+    pub total_outcome_volumes: BTreeMap<String, Price>, // outcomeId -> u64
+    pub is_replay_mode: bool,
 }
 
 impl MatchingEngine {
-    pub fn new() -> Self {
+    pub fn new(replay: bool) -> Self {
         info!("Initializing new MatchingEngine");
         Self {
-            books: HashMap::new(),
-            fair_prices: HashMap::new(),
-            total_outcome_volumes: HashMap::new(),
+            books: BTreeMap::new(),
+            fair_prices: BTreeMap::new(),
+            total_outcome_volumes: BTreeMap::new(),
+            is_replay_mode: replay,
         }
     }
 
@@ -44,7 +46,7 @@ impl MatchingEngine {
     ) -> (
         Vec<PublishEngineEvent>,
         &OrderBook,
-        Vec<(String, Price, Price, Snapshot)>,
+        Vec<(String, Price, Price)>,
     ) {
         let mut events = Vec::new();
         let execution_result = self.execute_order_on_book(order);
@@ -59,16 +61,9 @@ impl MatchingEngine {
                     time_in_force: Some(TimeInForce::GTC),
                     quantity: Quantity(order.qty_original),
                 });
-                let total_volume = self
-                    .total_outcome_volumes
-                    .get(&order.outcome_id)
-                    .unwrap_or(&Price(0));
-                let fair_price = self.fair_prices.get(&order.outcome_id).unwrap_or(&Price(0));
-                let snapshots = self
-                    .create_snapshots(fair_price.clone(), total_volume.clone())
-                    .await;
+                let fair_prices_and_total_volumes = self.get_fair_prices_and_total_volumes().await;
                 let book = self.books.get(&order.outcome_id).unwrap();
-                return (events, book, snapshots);
+                return (events, book, fair_prices_and_total_volumes);
             }
         };
 
@@ -98,12 +93,17 @@ impl MatchingEngine {
             OrderStatus::Filled | OrderStatus::PartiallyFilled => {
                 self.fair_prices
                     .insert(outcome_id.clone(), execution_report.price);
-                let _: Result<String, RedisError> = redis
-                    .set(
-                        format!("fair_price:{}", &order.outcome_id),
-                        execution_report.price.0.to_string(),
-                    )
-                    .await;
+                if !self.is_replay_mode {
+                    let _: Result<String, RedisError> = redis
+                        .set(
+                            format!("fair_price:{}", &order.outcome_id),
+                            execution_report.price.0.to_string(),
+                        )
+                        .await;
+                } else {
+                    self.fair_prices
+                        .insert(outcome_id.clone(), execution_report.price);
+                }
                 if execution_report.status == OrderStatus::Filled {
                     events.push(PublishEngineEvent::OrderFilled {
                         order_id: execution_report.order_id,
@@ -129,7 +129,11 @@ impl MatchingEngine {
                 }
                 for fill in &execution_report.fills {
                     events.push(PublishEngineEvent::Trade {
-                        trade_id: Uuid::new_v4().to_string(),
+                        trade_id: self.generate_trade_id(
+                            &execution_report.order_id,
+                            &fill.order_id,
+                            &fill.account_id,
+                        ),
                         account_id: AccountId(order.account_id),
                         outcome_id: order.outcome_id.clone(),
                         order_id: execution_report.order_id,
@@ -167,11 +171,9 @@ impl MatchingEngine {
             }
         }
 
-        let snapshots = self
-            .create_snapshots(execution_report.price, new_total_volume.clone())
-            .await;
+        let fair_prices_and_total_volumes = self.get_fair_prices_and_total_volumes().await;
         let book = self.books.get(&order.outcome_id).unwrap();
-        (events, book, snapshots)
+        (events, book, fair_prices_and_total_volumes)
     }
 
     fn execute_order_on_book(&mut self, order: &Order) -> Result<ExecutionReport, EngineError> {
@@ -206,14 +208,9 @@ impl MatchingEngine {
         Ok(execution_report)
     }
 
-    async fn create_snapshots(
-        &mut self,
-        new_fair_price: Price,
-        new_total_volume: Price,
-    ) -> Vec<(String, Price, Price, Snapshot)> {
-        let mut snapshots = Vec::new();
-        for (outcome_id, book) in &self.books {
-            let snapshot = book.snapshot();
+    async fn get_fair_prices_and_total_volumes(&mut self) -> Vec<(String, Price, Price)> {
+        let mut fair_prices_and_total_volumes = Vec::new();
+        for (outcome_id, _) in &self.books {
             let fair_price = self
                 .fair_prices
                 .get(outcome_id)
@@ -224,76 +221,30 @@ impl MatchingEngine {
                 .get(outcome_id)
                 .copied()
                 .unwrap_or(Price(0));
-            snapshots.push((outcome_id.clone(), fair_price, total_volume, snapshot));
+            fair_prices_and_total_volumes.push((outcome_id.clone(), fair_price, total_volume));
         }
-        snapshots
+        fair_prices_and_total_volumes
     }
 
-    pub fn apply_snapshots(&mut self, snapshots: Vec<(String, Snapshot)>) -> EngineResult<()> {
-        info!("Applying {} snapshots to engine", snapshots.len());
-        for (outcome_id, snapshot) in snapshots {
-            match self.apply_single_snapshot(&outcome_id, snapshot) {
-                Ok(_) => {
-                    debug!("Successfully applied snapshot for outcome: {}", outcome_id);
-                }
-                Err(e) => {
-                    error!("Failed to apply snapshot for outcome {}: {}", outcome_id, e);
-                    return Err(EngineError::Snapshot(format!(
-                        "Failed to apply snapshot for outcome {}: {}",
-                        outcome_id, e
-                    )));
-                }
-            }
-        }
-        info!("Successfully applied all snapshots");
-        Ok(())
-    }
-
-    fn apply_single_snapshot(&mut self, outcome_id: &str, snapshot: Snapshot) -> EngineResult<()> {
-        let builder = OrderBookBuilder::new(outcome_id);
-        let orderbook_builder = builder.with_snapshot(snapshot);
-        let orderbook = orderbook_builder.build();
-        self.books.insert(outcome_id.to_string(), orderbook);
-        Ok(())
+    fn generate_trade_id(
+        &self,
+        order_id: &OrderId,
+        filled_order_id: &OrderId,
+        fill_account_id: &AccountId,
+    ) -> String {
+        let namespace = Uuid::NAMESPACE_OID;
+        let input = format!("{}-{}-{}", order_id, filled_order_id, fill_account_id);
+        Uuid::new_v5(&namespace, input.as_bytes()).to_string()
     }
 
     pub fn stats(&self) -> EngineStats {
         EngineStats {
             total_books: self.books.len(),
-            books: self
-                .books
-                .iter()
-                .map(|(outcome_id, book)| {
-                    let depth = book.depth(None);
-                    (
-                        outcome_id.clone(),
-                        BookStats {
-                            bid_levels: depth.bids.len(),
-                            ask_levels: depth.asks.len(),
-                        },
-                    )
-                })
-                .collect(),
         }
     }
 }
 
-impl Default for MatchingEngine {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-/// Statistics about the matching engine
 #[derive(Debug, Clone)]
 pub struct EngineStats {
     pub total_books: usize,
-    pub books: HashMap<String, BookStats>,
-}
-
-/// Statistics about a single order book
-#[derive(Debug, Clone)]
-pub struct BookStats {
-    pub bid_levels: usize,
-    pub ask_levels: usize,
 }

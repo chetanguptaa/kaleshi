@@ -213,7 +213,9 @@ impl OrderBook {
                 // and don't insert the order in the order book
                 order.status = OrderStatus::Canceled;
             } else {
-                order.status = OrderStatus::PartiallyFilled;
+                if order.executed_qty != Quantity(0) {
+                    order.status = OrderStatus::PartiallyFilled;
+                }
                 self.orders.insert(order.id, order);
                 if order.side == Side::Buy {
                     self.bids

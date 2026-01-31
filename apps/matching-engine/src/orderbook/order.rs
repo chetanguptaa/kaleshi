@@ -6,6 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::{
+    fmt,
     iter::Sum,
     ops::{Add, AddAssign, Div, Mul, Sub},
 };
@@ -22,9 +23,20 @@ impl AddAssign<u64> for OrderId {
         self.0 += rhs;
     }
 }
+impl fmt::Display for OrderId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct AccountId(pub u64);
+
+impl fmt::Display for AccountId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, PartialOrd, Ord)]
 pub struct Price(pub u64);

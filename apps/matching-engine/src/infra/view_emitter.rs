@@ -1,7 +1,7 @@
 use crate::{
     engine::publish_events::PublishEngineEvent,
     error::EngineResult,
-    orderbook::{Depth, Price, Snapshot},
+    orderbook::{Depth, Price},
 };
 use redis::AsyncCommands;
 use serde_json::json;
@@ -9,13 +9,15 @@ use serde_json::json;
 pub struct ViewEmitter {
     redis: redis::aio::Connection,
     stream: &'static str,
+    pub is_replay_mode: bool,
 }
 
 impl ViewEmitter {
-    pub fn new(redis: redis::aio::Connection) -> Self {
+    pub fn new(redis: redis::aio::Connection, replay: bool) -> Self {
         Self {
             redis,
             stream: "engine.events",
+            is_replay_mode: replay,
         }
     }
     pub async fn emit_book_depth(&mut self, outcome_id: &str, depth: Depth) -> EngineResult<()> {
@@ -36,18 +38,19 @@ impl ViewEmitter {
     pub async fn emit_market_data(
         &mut self,
         market_id: &u32,
-        snapshots: &Vec<(String, Price, Price, Snapshot)>,
+        fair_prices_and_total_volumes: &Vec<(String, Price, Price)>,
     ) -> EngineResult<()> {
-        let current_fair_price_and_total_volume: Vec<serde_json::Value> = snapshots
-            .iter()
-            .map(|(outcome_id, fair_price, total_volume, _)| {
-                json!({
-                    "outcomeId": outcome_id,
-                    "fairPrice": fair_price,
-                    "totalVolume": total_volume,
+        let current_fair_price_and_total_volume: Vec<serde_json::Value> =
+            fair_prices_and_total_volumes
+                .iter()
+                .map(|(outcome_id, fair_price, total_volume)| {
+                    json!({
+                        "outcomeId": outcome_id,
+                        "fairPrice": fair_price,
+                        "totalVolume": total_volume,
+                    })
                 })
-            })
-            .collect();
+                .collect();
         let event = json!({
             "type": "market.data",
             "marketId": market_id,

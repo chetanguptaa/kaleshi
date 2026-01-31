@@ -27,7 +27,7 @@ export async function handleOrderCancelled(event: OrderCancelledEvent) {
       where: { id: account_id },
       data: {
         reservedCoins: {
-          decrement: Math.round((order.price * order.quantity) / 100),
+          decrement: order.price * order.quantity,
         },
       },
     });

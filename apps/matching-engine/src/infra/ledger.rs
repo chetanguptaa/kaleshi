@@ -1,22 +1,16 @@
-use crate::{
-    error::EngineResult,
-    orderbook::{Price, Snapshot},
-};
+use crate::error::EngineResult;
 use redis::AsyncCommands;
+use serde_json::Value;
 
 pub async fn append_events_to_ledger(
     redis: &mut redis::aio::Connection,
-    events: &Vec<(String, Price, Price, Snapshot)>,
+    payload: Value,
 ) -> EngineResult<()> {
-    let snapshot: Vec<(String, Snapshot)> = events
-        .iter()
-        .map(|(outcome_id, _, _, snapshot)| (outcome_id.clone(), snapshot.clone()))
-        .collect();
     let _: String = redis
         .xadd(
             "engine.ledger",
             "*",
-            &[("payload", serde_json::to_string(&snapshot)?)],
+            &[("payload", serde_json::to_string(&payload)?)],
         )
         .await?;
     Ok(())
