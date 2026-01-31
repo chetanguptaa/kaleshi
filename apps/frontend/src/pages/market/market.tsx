@@ -1,4 +1,8 @@
-import { IOutcome, MarketDataSocketEvent } from "@/lib/market";
+import {
+  BookDepthSocketEvent,
+  IOutcome,
+  MarketDataSocketEvent,
+} from "@/lib/market";
 import { useCurrentUser } from "@/schemas/layout/hooks";
 import { useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
@@ -36,7 +40,10 @@ import {
   useMarketDataById,
   useMarketDataHistoryById,
 } from "@/schemas/market/hooks";
-import { TMarketDataHistoryByIdResponse } from "@/schemas/market/schema";
+import {
+  TBookDepthByOutcomeIdResponse,
+  TMarketDataHistoryByIdResponse,
+} from "@/schemas/market/schema";
 import { OrderBook } from "@/components/common/orderbook";
 
 export default function Market() {
@@ -57,6 +64,12 @@ export default function Market() {
   const [liveMarketHistory, setLiveMarketHistory] = useState<
     TMarketDataHistoryByIdResponse["data"]
   >([]);
+  const [liveBookDepth, setLiveBookDepth] = useState<
+    Partial<TBookDepthByOutcomeIdResponse>
+  >({
+    bids: [],
+    asks: [],
+  });
   const isLoggedIn = Boolean(currentUser);
   const hasTradingAccount = Boolean(currentUser?.data?.user?.accountId);
   const bookDepth = useBookDepthByOutcomeId(selectedOutcome?.outcomeId);
@@ -126,6 +139,19 @@ export default function Market() {
 
   useSocketEvent<MarketDataSocketEvent>("market.data", handleMarketData);
 
+  const handleBookDepth = useCallback(
+    (event: BookDepthSocketEvent) => {
+      if (event.outcome_id !== selectedOutcome?.outcomeId) return;
+      setLiveBookDepth({
+        bids: event.bids,
+        asks: event.asks,
+      });
+    },
+    [selectedOutcome?.outcomeId],
+  );
+
+  useSocketEvent<BookDepthSocketEvent>("book.depth", handleBookDepth);
+
   const chartData = useMemo(() => {
     if (!liveMarketHistory.length) return [];
     return buildChartData(liveMarketHistory, outcomeNameById);
@@ -135,6 +161,11 @@ export default function Market() {
     if (!marketDataHistory.isSuccess) return;
     setLiveMarketHistory(marketDataHistory.data.data);
   }, [marketDataHistory.isSuccess]);
+
+  useEffect(() => {
+    if (!bookDepth.isSuccess) return;
+    setLiveBookDepth(bookDepth.data);
+  }, [bookDepth.isSuccess]);
 
   useEffect(() => {
     if (!marketData?.isSuccess) return;
@@ -271,8 +302,8 @@ export default function Market() {
                         )}
                         {bookDepth.isSuccess && bookDepth?.data && (
                           <OrderBook
-                            bids={bookDepth?.data?.bids}
-                            asks={bookDepth?.data?.asks}
+                            bids={liveBookDepth.bids}
+                            asks={liveBookDepth.asks}
                             success={bookDepth.isSuccess}
                           />
                         )}

@@ -19,6 +19,14 @@ export type MarketDataSocketEvent = {
   }[];
 };
 
+export type BookDepthSocketEvent = {
+  type: "book.depth";
+  outcome_id: string;
+  bids: number[][];
+  asks: number[][];
+  timestamp: number;
+};
+
 export function timeAgo(createdAt: Date | string): string {
   const createdTime =
     typeof createdAt === "string" ? new Date(createdAt) : createdAt;

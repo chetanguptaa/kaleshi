@@ -19,7 +19,7 @@ export async function handleBookDepth(event: BookDepthEvent) {
   const placeholders: string[] = [];
   let i = 1;
   for (const [price, quantity] of bids) {
-    placeholders.push(`($${i++}, $${i++}, $${i++}, $${i++}, $${i++}), $${i++}`);
+    placeholders.push(`($${i++}, $${i++}, $${i++}, $${i++}, $${i++}, $${i++})`);
     values.push(time, outcome_id, "bid", price, quantity, false);
   }
   for (const [price, quantity] of asks) {
