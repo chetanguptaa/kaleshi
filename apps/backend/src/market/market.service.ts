@@ -5,6 +5,7 @@ import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaN
 import { ROLES } from 'src/constants';
 import { TimeseriesService } from 'src/timeseries/timeseries.service';
 import { QueryResultRow } from 'pg';
+import { MarketStatus } from 'generated/prisma/enums';
 
 @Injectable()
 export class MarketService {
@@ -20,8 +21,10 @@ export class MarketService {
           data: {
             name: body.name,
             marketCategoryId: body.marketCategoryId,
-            startsAt: body.startsAt,
-            endsAt: body.endsAt,
+            bettingStartAt: body.bettingStartAt,
+            bettingEndAt: body.bettingEndAt,
+            eventStartAt: body.eventStartAt,
+            eventEndAt: body.eventEndAt,
             metadata: body.metadata ?? {},
             ruleBook: body.ruleBook ?? null,
             rules: body.rules ?? null,
@@ -58,10 +61,12 @@ export class MarketService {
     if (!market) {
       throw new BadRequestException('Market does not exist');
     }
-    if (market.isActive) {
-      throw new BadRequestException('Market is already active');
+    if (market.status !== 'DRAFT') {
+      throw new BadRequestException(
+        `Market cannot be activated from status ${market.status}`,
+      );
     }
-    if (market.endsAt < new Date()) {
+    if (market.eventEndAt < new Date()) {
       throw new BadRequestException('Market has already ended');
     }
     await this.prismaService.market.update({
@@ -69,7 +74,7 @@ export class MarketService {
         id,
       },
       data: {
-        isActive: true,
+        status: MarketStatus.DRAFT,
       },
     });
     return {
@@ -117,12 +122,18 @@ export class MarketService {
           },
         },
         name: true,
-        isActive: true,
-        startsAt: true,
-        endsAt: true,
+        status: true,
+        eventStartAt: true,
+        eventEndAt: true,
+        bettingStartAt: true,
+        bettingEndAt: true,
       },
     });
-    if (!market || (!userRoles.includes(ROLES.ADMIN) && !market.isActive)) {
+    if (
+      !market ||
+      (!userRoles.includes(ROLES.ADMIN) &&
+        market.status === MarketStatus.DEACTIVATED)
+    ) {
       throw new BadRequestException('Market does not exist');
     }
     return {
@@ -131,13 +142,11 @@ export class MarketService {
     };
   }
 
-  async getMarkets(type?: 'inactive') {
+  async getMarkets(type?: MarketStatus) {
     const query: {
-      isActive?: boolean;
+      status?: MarketStatus;
     } = {};
-    if (type && type === 'inactive') {
-      query.isActive = false;
-    }
+    if (type) query.status = type;
     const markets = await this.prismaService.market.findMany({
       where: query,
     });

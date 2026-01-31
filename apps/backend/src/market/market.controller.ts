@@ -17,6 +17,7 @@ import { Roles } from 'src/decorators/roles.decorator';
 import { MarketService } from './market.service';
 import { z } from 'zod';
 import { type AppRequest } from 'src/@types/express';
+import { MarketStatus } from 'generated/prisma/enums';
 
 const hexColor = z
   .string()
@@ -24,6 +25,15 @@ const hexColor = z
     /^#[0-9A-Fa-f]{6}$/,
     'color must be a valid hex color in the format #RRGGBB',
   );
+
+const utcDate = z.preprocess((value) => {
+  if (typeof value === 'string') {
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return undefined;
+    return date;
+  }
+  return value;
+}, z.date());
 
 const createMarketSchema = z
   .object({
@@ -40,22 +50,28 @@ const createMarketSchema = z
     metadata: z.json().optional(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
-    startsAt: z.coerce.date(),
-    endsAt: z.coerce.date(),
+    // --- Time fields (UTC only) ---
+    bettingStartAt: utcDate,
+    bettingEndAt: utcDate,
+    eventStartAt: utcDate,
+    eventEndAt: utcDate,
   })
-  .refine((data) => new Date(data.startsAt) >= new Date(), {
-    message: 'startsAt cannot be in the past',
-    path: ['startsAt'],
+  .refine((data) => data.bettingStartAt.getTime() >= Date.now(), {
+    message: 'bettingStartAt cannot be in the past',
+    path: ['bettingStartAt'],
   })
-  .refine((data) => new Date(data.endsAt) >= new Date(), {
-    message: 'endsAt cannot be in the past',
-    path: ['endsAt'],
+  .refine((data) => data.bettingStartAt < data.bettingEndAt, {
+    message: 'bettingEndAt must be after bettingStartAt',
+    path: ['bettingEndAt'],
   })
-  .refine((data) => new Date(data.endsAt) >= new Date(data.startsAt), {
-    message: 'endsAt cannot be before startsAt',
-    path: ['endsAt'],
+  .refine((data) => data.bettingEndAt <= data.eventStartAt, {
+    message: 'bettingEndAt must be before or at eventStartAt',
+    path: ['bettingEndAt'],
+  })
+  .refine((data) => data.eventStartAt < data.eventEndAt, {
+    message: 'eventEndAt must be after eventStartAt',
+    path: ['eventEndAt'],
   });
-
 export type TCreateMarketSchema = z.infer<typeof createMarketSchema>;
 
 @Controller('market')
@@ -82,9 +98,13 @@ export class MarketController {
   }
 
   @Get('')
-  async getMarkets(@Req() req: AppRequest, @Query() type?: 'inactive') {
+  async getMarkets(@Req() req: AppRequest, @Query() type?: MarketStatus) {
     const userRoles = req.user?.roles || [];
-    if (!userRoles.includes(ROLES.ADMIN) && type && type === 'inactive') {
+    if (
+      !userRoles.includes(ROLES.ADMIN) &&
+      type &&
+      type === MarketStatus.DEACTIVATED
+    ) {
       throw new UnauthorizedException('You are not authorized');
     }
     return await this.marketService.getMarkets(type);

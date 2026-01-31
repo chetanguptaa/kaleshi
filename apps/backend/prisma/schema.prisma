@@ -43,6 +43,16 @@ enum TimeInForce {
   FOK
 }
 
+enum MarketStatus {
+  DEACTIVATED
+  DRAFT
+  OPEN
+  CLOSED
+  SETTLING
+  SETTLED
+  CANCELLED
+}
+
 model User {
   id              Int        @id @default(autoincrement())
   email           String     @unique
@@ -105,10 +115,12 @@ model Market {
   name             String
   avatar           String?
   metadata         Json?
-  startsAt         DateTime // when the voting can start
-  endsAt           DateTime // when the voting will end
+  bettingStartAt   DateTime
+  bettingEndAt     DateTime
+  eventStartAt     DateTime
+  eventEndAt       DateTime
   marketCategoryId Int
-  isActive         Boolean        @default(false)
+  status           MarketStatus   @default(DEACTIVATED)
   ruleBook         String?
   rules            String?
   marketCategory   MarketCategory @relation(fields: [marketCategoryId], references: [id])
@@ -117,7 +129,9 @@ model Market {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  @@unique([name, startsAt, endsAt])
+  @@unique([name, eventStartAt])
+  @@index([status, bettingEndAt])
+  @@index([status, eventEndAt])
 }
 
 model Outcome {
