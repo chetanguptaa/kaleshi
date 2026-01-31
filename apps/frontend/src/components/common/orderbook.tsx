@@ -18,7 +18,7 @@ export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
             {bookDepth?.bids?.map((bid, i) => (
               <div key={i} className="order-book-row relative overflow-hidden">
                 <div
-                  className="absolute inset-0 bg-success/10"
+                  className="absolute inset-0 bg-green-300"
                   style={{ width: `${((bid[0] * bid[1]) / maxTotal) * 100}%` }}
                 />
                 <span className="relative font-mono text-success">
