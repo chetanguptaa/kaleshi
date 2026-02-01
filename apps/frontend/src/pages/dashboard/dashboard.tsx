@@ -13,6 +13,20 @@ import TrendingMarketCard from "./components/trending-market-card";
 import { useCurrentUser } from "@/schemas/layout/hooks";
 import { useMarkets, useMarketsPrefetch } from "@/schemas/market/hooks";
 import { MarketCard } from "./components/market-card";
+import { TMarket } from "@/schemas/market/schema";
+
+const getTrendingMarket = (markets: TMarket[], categoryId) => {
+  let trendingMarket = null;
+  if (markets?.length) {
+    for (let i = 0; i < markets.length; i++) {
+      if (markets[i].marketCategoryId === categoryId) {
+        trendingMarket = markets[i];
+        break;
+      }
+    }
+  }
+  return trendingMarket;
+};
 
 export default function DashboardPage() {
   const [selection, setSelection] = useRecoilState(marketSelectionAtom);
@@ -33,9 +47,7 @@ export default function DashboardPage() {
   const marketCategoryById = useMarketCategoryById(categoryId);
   const prefetch = useMarketsPrefetch();
 
-  const trendingMarket = markets?.data?.markets?.length
-    ? markets.data.markets[0]
-    : null;
+  const trendingMarket = getTrendingMarket(markets?.data?.markets, categoryId);
 
   if (
     marketCategories?.isLoading ||
@@ -115,9 +127,15 @@ export default function DashboardPage() {
             )}
             <section className="mt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-24">
-                {markets?.data?.markets?.slice(1).map((market) => (
-                  <MarketCard key={market?.id} market={market} />
-                ))}
+                {markets?.data?.markets
+                  ?.filter(
+                    (market) =>
+                      market.id !== trendingMarket?.id &&
+                      market.categoryId === categoryId,
+                  )
+                  .map((market) => (
+                    <MarketCard key={market?.id} market={market} />
+                  ))}
               </div>
             </section>
           </div>
