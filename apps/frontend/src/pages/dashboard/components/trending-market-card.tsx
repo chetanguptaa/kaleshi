@@ -16,7 +16,13 @@ import {
 import { TCurrentUser } from "@/schemas/layout/schema";
 import { useCanSellOrder, useCreateOrder } from "@/schemas/orders/hooks";
 import { EOrderSide, EOrderType } from "@/schemas/orders/schema";
-import { MessageCircle } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  MessageCircle,
+  TreeDeciduous,
+  TreeDeciduousIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -43,8 +49,16 @@ import {
 } from "@/schemas/market/hooks";
 import {
   ETimeInForce,
+  TCommentSchema,
   TMarketDataHistoryByIdResponse,
 } from "@/schemas/market/schema";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { CommentVoteType, TVoteCommentRequest } from "@/schemas/comment/schema";
+import { useVoteComment } from "@/schemas/comment/hooks";
 
 const TrendingMarketCard = ({
   id,
@@ -77,10 +91,10 @@ const TrendingMarketCard = ({
   const [timeInForce, setTimeInForce] = useState<ETimeInForce>(
     ETimeInForce.GTC,
   );
+  const [liveComments, setLiveComments] = useState<TCommentSchema[]>([]);
+  const { mutate: voteCommentMutate } = useVoteComment();
 
-  let mostUpvotedComment = getMostUpvotedComment(
-    trendingMarket?.data?.market?.comments || [],
-  );
+  let mostUpvotedComment = getMostUpvotedComment(liveComments || []);
 
   const hasMoreOutcomes = outcomes.length > MAX_OUTCOMES_VISIBLE;
 
@@ -149,6 +163,26 @@ const TrendingMarketCard = ({
 
   useSocketEvent<MarketDataSocketEvent>("market.data", handleMarketData);
 
+  const handleLiveComments = useCallback(
+    (event: TCommentSchema) => {
+      if (event.marketId !== id) return;
+      setLiveComments((prevComments) => {
+        const index = prevComments.findIndex(
+          (comment) => comment.id === event.id,
+        );
+        if (index !== -1) {
+          const next = [...prevComments];
+          next[index] = event;
+          return next;
+        }
+        return [...prevComments, event];
+      });
+    },
+    [id],
+  );
+
+  useSocketEvent<TCommentSchema>("comment", handleLiveComments);
+
   const chartData = useMemo(() => {
     if (!liveMarketHistory.length) return [];
     return buildChartData(liveMarketHistory, outcomeNameById);
@@ -193,6 +227,12 @@ const TrendingMarketCard = ({
       socketService.unsubscribeFromOutcome(selectedOutcome?.outcomeId);
     };
   }, [selectedOutcome?.outcomeId]);
+
+  useEffect(() => {
+    if (!trendingMarket?.isSuccess) return;
+    const comments = trendingMarket?.data?.market?.comments;
+    setLiveComments(comments);
+  }, [trendingMarket?.isSuccess, trendingMarket?.data?.market]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -241,6 +281,25 @@ const TrendingMarketCard = ({
     );
   }, [orderSide, selectedOutcome?.outcomeId, currentUser?.accountId]);
 
+  const canVote = isLoggedIn && hasTradingAccount;
+
+  const voteTooltipMessage = !isLoggedIn
+    ? "Login to vote"
+    : !hasTradingAccount
+      ? "Create trading account to vote"
+      : "";
+
+  const handleVote = async (commentId: string, data: TVoteCommentRequest) => {
+    if (!isLoggedIn || !hasTradingAccount || !trendingMarket?.data?.market) {
+      return;
+    }
+    voteCommentMutate({
+      marketId: trendingMarket?.data?.market?.id,
+      commentId,
+      data,
+    });
+  };
+
   if (
     trendingMarket?.isLoading ||
     marketData?.isLoading ||
@@ -249,6 +308,13 @@ const TrendingMarketCard = ({
   ) {
     return <Loading />;
   }
+
+  const upvotes = mostUpvotedComment?.votes?.filter(
+    (v) => v.vote === "UP",
+  ).length;
+  const downvotes = mostUpvotedComment?.votes?.filter(
+    (v) => v.vote === "DOWN",
+  ).length;
 
   if (trendingMarket?.isSuccess) {
     return (
@@ -285,7 +351,9 @@ const TrendingMarketCard = ({
               ))}
               {hasMoreOutcomes && (
                 <Button asChild variant="secondary">
-                  <Link to="/abc">Show more outcomes</Link>
+                  <Link to={`/market/${trendingMarket.data.market.id}`}>
+                    Show more outcomes
+                  </Link>
                 </Button>
               )}
             </div>
@@ -307,6 +375,53 @@ const TrendingMarketCard = ({
                     <p className="text-muted-foreground text-sm mt-0.5">
                       {mostUpvotedComment?.comment}
                     </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                          >
+                            <div
+                              role="button"
+                              aria-disabled={!canVote}
+                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-100"}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!canVote) return;
+                                handleVote(mostUpvotedComment?.id, {
+                                  vote: CommentVoteType.UP,
+                                });
+                              }}
+                            >
+                              <ArrowUp className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-400">
+                                {upvotes}
+                              </span>
+                            </div>
+                            <div
+                              role="button"
+                              aria-disabled={!canVote}
+                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-100"}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!canVote) return;
+                                handleVote(mostUpvotedComment.id, {
+                                  vote: CommentVoteType.DOWN,
+                                });
+                              }}
+                            >
+                              <ArrowDown className="w-3 h-3 text-red-400" />
+                              <span className="text-red-400">{downvotes}</span>
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        {!canVote && (
+                          <TooltipContent side="top">
+                            <p>{voteTooltipMessage}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </div>
                   </div>
                 </div>
               )}

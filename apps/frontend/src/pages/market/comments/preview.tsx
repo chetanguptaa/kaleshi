@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { EOrderType } from "@/schemas/orders/schema";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { IOutcome } from "@/lib/market";
+import { IOutcome, timeAgo } from "@/lib/market";
 import { useCreateComment, useVoteComment } from "@/schemas/comment/hooks";
 import { CommentVoteType, TVoteCommentRequest } from "@/schemas/comment/schema";
 import {
@@ -124,11 +124,11 @@ export const CommentPreview = ({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-medium truncate">
-                        {comment.account.user.name}
+                      <span className="font-semibold text-foreground text-xs">
+                        {comment?.account?.user?.name}
                       </span>
-                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
-                        {formatTimeAgo(new Date(comment.createdAt))}
+                      <span className="text-muted-foreground text-xs">
+                        {timeAgo(new Date(comment?.createdAt))}
                       </span>
                     </div>
                     <p className={`text-xs line-clamp-2 mt-0.5  ${voteStyle}`}>
@@ -143,7 +143,7 @@ export const CommentPreview = ({
                             <div
                               role="button"
                               aria-disabled={!canVote}
-                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-100"}`}
                               onClick={() => {
                                 if (!canVote) return;
                                 handleVote(comment.id, {
@@ -159,7 +159,7 @@ export const CommentPreview = ({
                             <div
                               role="button"
                               aria-disabled={!canVote}
-                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-100"}`}
                               onClick={() => {
                                 if (!canVote) return;
                                 handleVote(comment.id, {
