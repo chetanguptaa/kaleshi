@@ -72,7 +72,7 @@ export default function DashboardPage() {
                 className={
                   subSelection
                     ? "px-3 py-1 text-sm whitespace-nowrap text-black hover:text-foreground transition-colors border rounded-2xl border-gray-400 hover:bg-slate-100"
-                    : "px-3 py-1 text-sm whitespace-nowrap transition-colors border rounded-2xl  hover:bg-green-200 bg-green-50 text-green-700"
+                    : "px-3 py-1 text-sm whitespace-nowrap transition-colors border rounded-2xl   bg-green-50 text-green-700"
                 }
               >
                 For you
@@ -96,9 +96,9 @@ export default function DashboardPage() {
                         })
                       }
                       className={
-                        !subSelection
+                        subSelection?.categoryId !== child?.id
                           ? "px-3 py-1 text-sm whitespace-nowrap text-black hover:text-foreground transition-colors border rounded-2xl border-gray-400 hover:bg-slate-100"
-                          : "px-3 py-1 text-sm whitespace-nowrap transition-colors border rounded-2xl  hover:bg-green-200 bg-green-50 text-green-700"
+                          : "px-3 py-1 text-sm whitespace-nowrap transition-colors border rounded-2xl  bg-green-50 text-green-700"
                       }
                     >
                       {child.name}
