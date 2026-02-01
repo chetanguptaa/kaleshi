@@ -26,7 +26,7 @@ export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
                   <div
                     className="absolute inset-0 bg-destructive/10 right-0"
                     style={{
-                      width: `${((ask[0] * ask[1]) / maxTotal) * 100}%`,
+                      width: `${(ask[0] * ask[1]) / maxTotal}%`,
                     }}
                   />
                   <span className="relative font-mono text-destructive">
@@ -56,7 +56,7 @@ export function OrderBook(bookDepth: TBookDepthByOutcomeIdResponse) {
                   <div
                     className="absolute inset-0 bg-green-300"
                     style={{
-                      width: `${((bid[0] * bid[1]) / maxTotal) * 100}%`,
+                      width: `${(bid[0] * bid[1]) / maxTotal}%`,
                     }}
                   />
                   <span className="relative font-mono text-success">

@@ -5,13 +5,16 @@ import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaN
 import { ROLES } from 'src/constants';
 import { TimeseriesService } from 'src/timeseries/timeseries.service';
 import { QueryResultRow } from 'pg';
-import { MarketStatus } from 'generated/prisma/enums';
+import { MarketStatus, OrderSide, TimeInForce } from 'generated/prisma/enums';
+import { OrderNewEvent } from 'src/redis/redis-publisher.event-types';
+import { RedisPublisherService } from 'src/redis/redis.publisher.service';
 
 @Injectable()
 export class MarketService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly timeseriesService: TimeseriesService,
+    private readonly redisPublisherService: RedisPublisherService,
   ) {}
 
   async createMarket(body: TCreateMarketSchema) {
@@ -31,13 +34,20 @@ export class MarketService {
             rules: body.rules ?? null,
           },
         });
-        await tx.outcome.createMany({
-          data: body.outcomes.map((o) => ({
-            name: o.name,
-            color: o.color,
-            marketId: newMarket.id,
-          })),
-        });
+        const createdOutcomes = await Promise.all(
+          body.outcomes.map((o) =>
+            tx.outcome.create({
+              data: {
+                name: o.name,
+                color: o.color,
+                marketId: newMarket.id,
+              },
+            }),
+          ),
+        );
+        if (body.seedLiquidity !== false) {
+          await this.seedMarketLiquidity(createdOutcomes, newMarket.id);
+        }
         return newMarket;
       });
       return { success: true, id: result.id };
@@ -310,5 +320,78 @@ export class MarketService {
         totalVolume: Number(row.total_volume! as number),
       };
     });
+  }
+
+  private async seedMarketLiquidity(
+    outcomes: Array<{ id: string; name: string; marketId: number }>,
+    marketId: number,
+  ) {
+    const PLATFORM_ACCOUNT_ID = 1;
+    const SEED_QUANTITY = 1000;
+    // Calculate fair price based on number of outcomes
+    // For 3 outcomes: each starts at ~33.33¢
+    const numOutcomes = outcomes.length;
+    const fairPrice = Math.round(100 / numOutcomes); // 33 for 3 outcomes
+    // Define spread around fair price
+    const SPREAD_PERCENTAGE = 0.2; // 20% spread
+    const spread = Math.round(fairPrice * SPREAD_PERCENTAGE);
+    const buyPrice = Math.max(1, fairPrice - spread); // Platform buys at lower price
+    const sellPrice = Math.min(99, fairPrice + spread); // Platform sells at higher price
+    for (const outcome of outcomes) {
+      await this.placePlatformOrder({
+        accountId: PLATFORM_ACCOUNT_ID,
+        outcomeId: outcome.id,
+        outcomeName: outcome.name,
+        marketId: marketId,
+        side: OrderSide.Buy,
+        price: buyPrice,
+        quantity: SEED_QUANTITY,
+      });
+      await this.placePlatformOrder({
+        accountId: PLATFORM_ACCOUNT_ID,
+        outcomeId: outcome.id,
+        outcomeName: outcome.name,
+        marketId: marketId,
+        side: OrderSide.Sell,
+        price: sellPrice,
+        quantity: SEED_QUANTITY,
+      });
+    }
+  }
+
+  private async placePlatformOrder(params: {
+    accountId: number;
+    outcomeId: string;
+    outcomeName: string;
+    marketId: number;
+    side: OrderSide;
+    price: number;
+    quantity: number;
+  }) {
+    const {
+      accountId,
+      outcomeId,
+      outcomeName,
+      marketId,
+      side,
+      price,
+      quantity,
+    } = params;
+    // For platform orders, we SKIP balance checks and canSell checks
+    // The platform account should have unlimited/high balance
+    const eventData: OrderNewEvent = {
+      type: 'order.new',
+      outcome_id: outcomeId,
+      outcome_name: outcomeName,
+      market_id: marketId,
+      account_id: accountId,
+      side: side,
+      order_type: 'LIMIT',
+      price: price,
+      qty_remaining: quantity,
+      qty_original: quantity,
+      time_in_force: TimeInForce.GTC,
+    };
+    await this.redisPublisherService.pushOrderCommand(eventData);
   }
 }

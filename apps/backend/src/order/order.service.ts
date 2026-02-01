@@ -73,6 +73,7 @@ export class OrderService {
         quantity: true,
         accountId: true,
         filledAccountId: true,
+        order: true,
       },
     });
     let netShares = 0;
@@ -96,20 +97,6 @@ export class OrderService {
     if (!account) {
       throw new BadRequestException('Account does not exist');
     }
-    if (body.side === 'Sell') {
-      const canSell = await this.canSell(accountId, {
-        outcomeId: body.outcomeId,
-        requestedQuantity: body.quantity,
-      });
-      if (!canSell.success || !canSell.canSell) {
-        throw new BadRequestException('Insufficient shares to sell');
-      }
-    }
-    const scaledPrice = body.price ? Math.round(body.price * 100) : 0;
-    const quantity = body.quantity;
-    if (body.orderType === 'LIMIT' && account.coins < scaledPrice * quantity) {
-      throw new BadRequestException('Not enough balance available');
-    }
     const outcome = await this.prismaService.outcome.findUnique({
       where: {
         id: body.outcomeId,
@@ -118,6 +105,39 @@ export class OrderService {
     if (!outcome) {
       throw new NotFoundException('Outcome does not exist');
     }
+    const scaledPrice = body.price ? Math.round(body.price * 100) : 0;
+    const quantity = body.quantity;
+    if (body.side === 'Sell') {
+      const canSell = await this.canSell(accountId, {
+        outcomeId: body.outcomeId,
+        requestedQuantity: body.quantity,
+      });
+      if (!canSell.success || !canSell.canSell) {
+        throw new BadRequestException('Insufficient shares to sell');
+      }
+      const eventData: OrderNewEvent = {
+        type: 'order.new',
+        outcome_id: body.outcomeId,
+        outcome_name: outcome.name,
+        market_id: outcome.marketId,
+        account_id: accountId,
+        side: body.side,
+        order_type: body.orderType,
+        price: scaledPrice,
+        qty_remaining: quantity,
+        qty_original: quantity,
+        time_in_force: body.timeInForce ?? TimeInForce.GTC,
+      };
+      await this.redisPublisherService.pushOrderCommand(eventData);
+      return {
+        success: true,
+        message: 'Sell order created successfully',
+      };
+    }
+    if (body.orderType === 'LIMIT' && account.coins < scaledPrice * quantity) {
+      throw new BadRequestException('Not enough balance available');
+    }
+
     let orderCost = 0;
     if (body.orderType === 'LIMIT') {
       orderCost = scaledPrice * quantity;

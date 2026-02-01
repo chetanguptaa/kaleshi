@@ -26,20 +26,32 @@ async function main() {
   const adminEmail = 'admin@example.com';
   const adminPassword = '12345678';
   const passwordHash = await bcrypt.hash(adminPassword, 10);
-  const adminUser = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {},
-    create: {
-      name: 'Primary Admin',
-      email: adminEmail,
-      password: passwordHash,
-      isEmailVerified: true,
-      userRoles: {
-        create: {
-          roleId: adminRole.id,
+  const { adminUser } = await prisma.$transaction(async (tx) => {
+    const adminUser = await tx.user.upsert({
+      where: { email: adminEmail },
+      update: {},
+      create: {
+        name: 'Primary Admin',
+        email: adminEmail,
+        password: passwordHash,
+        isEmailVerified: true,
+        userRoles: {
+          create: {
+            roleId: adminRole.id,
+          },
         },
       },
-    },
+    });
+    await tx.account.upsert({
+      where: { userId: adminUser.id },
+      update: {},
+      create: {
+        id: 1,
+        userId: adminUser.id,
+        coins: 1000000,
+      },
+    });
+    return { adminUser };
   });
   console.log('Seed complete:');
   console.log('Roles:', { commonRole, adminRole });

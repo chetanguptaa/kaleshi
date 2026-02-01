@@ -51,6 +51,13 @@ const createMarketSchema = z
     metadata: z.json().optional(),
     ruleBook: z.string().optional(),
     rules: z.string().optional(),
+    seedLiquidity: z.boolean().default(true),
+    seedConfig: z
+      .object({
+        quantity: z.number().min(1).optional().default(1000),
+        spreadPercentage: z.number().min(0).max(1).optional().default(0.2),
+      })
+      .optional(),
     // --- Time fields (UTC only) ---
     bettingStartAt: utcDate,
     bettingEndAt: utcDate,

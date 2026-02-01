@@ -52,7 +52,7 @@ export const CommentPreview = ({
 
   useEffect(() => {
     bottomRef?.current?.scrollIntoView({ behavior: "auto", block: "nearest" });
-  }, [comments, orderType]);
+  }, [orderType]);
 
   const handleSubmit = async () => {
     if (!isLoggedIn || !hasTradingAccount) return;
