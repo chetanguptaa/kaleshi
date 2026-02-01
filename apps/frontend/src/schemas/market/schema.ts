@@ -12,13 +12,16 @@ export const outcomeSchema = z
 
 export const commentSchema = z
   .object({
+    id: z.string(),
+    marketId: z.number(),
     account: z.object({
+      id: z.number(),
       user: z.object({
+        id: z.number(),
         name: z.string(),
       }),
     }),
     comment: z.string(),
-    createdAt: z.string(),
     _count: z.object({
       votes: z.number(),
     }),
@@ -28,6 +31,7 @@ export const commentSchema = z
         vote: z.enum(["UP", "DOWN"]),
       }),
     ),
+    createdAt: z.string(),
   })
   .loose();
 

@@ -42,9 +42,9 @@ export const CommentPreview = ({
       <CardContent className="px-4 pb-4 pt-0 space-y-3">
         <ScrollArea className="max-h-[180px]">
           <div className="space-y-3 pr-2">
-            {previewComments.map((comment, i) => (
+            {previewComments.map((comment) => (
               <div
-                key={i}
+                key={comment.id}
                 className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
               >
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-bet-positive to-bet-positive/60 flex items-center justify-center text-bet-positive-foreground text-sm font-semibold flex-shrink-0">

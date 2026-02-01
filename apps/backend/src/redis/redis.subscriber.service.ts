@@ -4,9 +4,10 @@ import {
   REDIS_SUBSCRIBER,
   ENGINE_EVENT_PROCESSED_CHANNEL,
   ENGINE_EVENT_CHANNEL,
+  COMMENTS_CHANNEL,
 } from './redis.constants';
 import { WsGateway } from 'src/websocket/ws.gateway';
-import { EngineEvent } from './redis-subscriber.event-types';
+import { CommentEvent, EngineEvent } from './redis-subscriber.event-types';
 
 @Injectable()
 export class RedisSubscriberService implements OnModuleInit {
@@ -44,8 +45,20 @@ export class RedisSubscriberService implements OnModuleInit {
         this.handleIncoming(event);
       }
     });
+    await this.subscriber.subscribe(COMMENTS_CHANNEL, (message: string) => {
+      let event: CommentEvent | null = null;
+      try {
+        event = JSON.parse(message) as CommentEvent;
+      } catch (e) {
+        console.log('parsing error ', e);
+      }
+      if (event) {
+        this.handleCommentEvent(event);
+      }
+    });
     this.logger.log(`Subscribed to ${ENGINE_EVENT_PROCESSED_CHANNEL}`);
     this.logger.log(`Subscribed to ${ENGINE_EVENT_CHANNEL}`);
+    this.logger.log(`Subscribed to ${COMMENTS_CHANNEL}`);
   }
 
   private handleIncoming(event: EngineEvent) {
@@ -97,6 +110,10 @@ export class RedisSubscriberService implements OnModuleInit {
     } catch (err) {
       this.logger.error(`Error handling engine event`, err);
     }
+  }
+
+  private handleCommentEvent(event: CommentEvent) {
+    return this.gateway.broadcastComment(event);
   }
 
   onModuleDestroy() {

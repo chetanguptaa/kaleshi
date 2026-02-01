@@ -23,3 +23,25 @@ export type OrderCancelledEvent = {
 };
 
 export type EngineEvent = OrderNewEvent | OrderCancelledEvent;
+
+export type CommentEvent = {
+  type: 'comment';
+  id: string;
+  marketId: number;
+  account: {
+    id: number;
+    user: {
+      id: number;
+      name: string;
+    };
+  };
+  comment: string;
+  _count: {
+    votes: number;
+  };
+  votes: {
+    id: string;
+    vote: 'UP' | 'DOWN';
+  }[];
+  createdAt: Date;
+};

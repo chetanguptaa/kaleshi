@@ -8,6 +8,7 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import {
   BookDepthEvent,
+  CommentEvent,
   MarketDataEvent,
   OrderCancelledEvent,
   OrderFilledEvent,
@@ -138,6 +139,12 @@ export class WsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const listeners = this.subscribersByMarket.get(marketId);
     if (!listeners) return;
     for (const client of listeners) client.emit('market.data', payload);
+  }
+
+  broadcastComment(payload: CommentEvent) {
+    const listeners = this.subscribersByMarket.get(payload.marketId);
+    if (!listeners) return;
+    for (const client of listeners) client.emit('comment', payload);
   }
 
   // PRIVATE broadcast on orders

@@ -43,6 +43,7 @@ import {
 import {
   ETimeInForce,
   TBookDepthByOutcomeIdResponse,
+  TCommentSchema,
   TMarketDataHistoryByIdResponse,
 } from "@/schemas/market/schema";
 import { OrderBook } from "@/components/common/orderbook";
@@ -74,6 +75,7 @@ export default function Market() {
     bids: [],
     asks: [],
   });
+  const [liveComments, setLiveComments] = useState<TCommentSchema[]>([]);
   const isLoggedIn = Boolean(currentUser?.data?.user);
   const hasTradingAccount = Boolean(currentUser?.data?.user?.accountId);
   const bookDepth = useBookDepthByOutcomeId(selectedOutcome?.outcomeId);
@@ -160,6 +162,16 @@ export default function Market() {
 
   useSocketEvent<BookDepthSocketEvent>("book.depth", handleBookDepth);
 
+  const handleLiveComments = useCallback(
+    (event: TCommentSchema) => {
+      if (event.marketId !== id) return;
+      setLiveComments((prevComments) => [...prevComments, event]);
+    },
+    [id],
+  );
+
+  useSocketEvent<TCommentSchema>("comment", handleLiveComments);
+
   const chartData = useMemo(() => {
     if (!liveMarketHistory.length) return [];
     return buildChartData(liveMarketHistory, outcomeNameById);
@@ -188,6 +200,12 @@ export default function Market() {
       setSelectedOutcome(outcomes[0]);
     }
   }, [marketData?.isSuccess, marketData?.data?.data]);
+
+  useEffect(() => {
+    if (!market?.isSuccess) return;
+    const comments = market?.data?.market?.comments;
+    setLiveComments(comments);
+  }, [market?.isSuccess, market?.data?.market]);
 
   useEffect(() => {
     if (!currentUser?.data?.user?.accountId) return;
@@ -512,7 +530,7 @@ export default function Market() {
                   </CardContent>
                 </Card>
                 <CommentPreview
-                  comments={market?.data?.market?.comments || []}
+                  comments={liveComments}
                   onShowMore={() => {}}
                   maxPreview={4}
                 />

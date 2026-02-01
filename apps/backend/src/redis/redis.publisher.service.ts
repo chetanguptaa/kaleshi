@@ -1,7 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { createClient, type RedisClientType } from 'redis';
-import { ORDER_COMMANDS_STREAM } from './redis.constants';
+import { COMMENTS_CHANNEL, ORDER_COMMANDS_STREAM } from './redis.constants';
 import {
+  CommentEvent,
   OrderCancelledEvent,
   OrderNewEvent,
 } from './redis-publisher.event-types';
@@ -15,6 +16,10 @@ export class RedisPublisherService {
     this.client.connect().catch((err) => {
       this.logger.error('Redis connection error', err);
     });
+  }
+
+  async pushCommentCommand(comment: CommentEvent) {
+    await this.client?.PUBLISH(COMMENTS_CHANNEL, JSON.stringify(comment));
   }
 
   /**

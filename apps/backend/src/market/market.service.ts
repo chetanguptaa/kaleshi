@@ -92,16 +92,20 @@ export class MarketService {
         id: true,
         comments: {
           select: {
+            id: true,
             comment: true,
             account: {
               select: {
+                id: true,
                 user: {
                   select: {
+                    id: true,
                     name: true,
                   },
                 },
               },
             },
+            marketId: true,
             createdAt: true,
             votes: {
               select: {

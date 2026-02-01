@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TAddCommentSchema, TCommentVoteSchema } from './comment.controller';
+import { RedisPublisherService } from 'src/redis/redis.publisher.service';
+import { CommentEvent } from 'src/redis/redis-publisher.event-types';
 
 @Injectable()
 export class CommentService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly redisPublisherService: RedisPublisherService,
+  ) {}
 
   async addComment(
     accountId: number,
@@ -18,7 +23,48 @@ export class CommentService {
         parentId: body.parentId,
         marketId,
       },
+      include: {
+        account: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        votes: {
+          select: {
+            id: true,
+            vote: true,
+          },
+        },
+        _count: {
+          select: {
+            votes: true,
+          },
+        },
+      },
     });
+
+    const commentEvent: CommentEvent = {
+      type: 'comment',
+      id: comment.id,
+      account: {
+        id: comment.account.id,
+        user: comment.account.user,
+      },
+      marketId: comment.marketId,
+      comment: comment.comment,
+      _count: comment._count,
+      votes: comment.votes,
+      createdAt: comment.createdAt,
+    };
+
+    await this.redisPublisherService.pushCommentCommand(commentEvent);
+
     return {
       success: true,
       id: comment.id,
