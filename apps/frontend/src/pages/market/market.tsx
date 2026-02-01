@@ -165,7 +165,17 @@ export default function Market() {
   const handleLiveComments = useCallback(
     (event: TCommentSchema) => {
       if (event.marketId !== id) return;
-      setLiveComments((prevComments) => [...prevComments, event]);
+      setLiveComments((prevComments) => {
+        const index = prevComments.findIndex(
+          (comment) => comment.id === event.id,
+        );
+        if (index !== -1) {
+          const next = [...prevComments];
+          next[index] = event;
+          return next;
+        }
+        return [...prevComments, event];
+      });
     },
     [id],
   );
@@ -480,7 +490,7 @@ export default function Market() {
                                 : "white",
                           }}
                         >
-                          <Link to="/signup">Sign up to trade</Link>
+                          <Link to="/auth/login">Login to trade</Link>
                         </Button>
                       )}
 
@@ -497,7 +507,7 @@ export default function Market() {
                                 : "white",
                           }}
                         >
-                          <Link to="/create-trading-account">
+                          <Link to="/trading-account">
                             Create trading account
                           </Link>
                         </Button>
@@ -530,9 +540,13 @@ export default function Market() {
                   </CardContent>
                 </Card>
                 <CommentPreview
+                  marketId={market?.data?.market?.id}
                   comments={liveComments}
+                  isLoggedIn={isLoggedIn}
+                  selectedOutcome={selectedOutcome}
+                  hasTradingAccount={hasTradingAccount}
                   onShowMore={() => {}}
-                  maxPreview={4}
+                  orderType={orderType}
                 />
               </div>
             </div>

@@ -443,7 +443,7 @@ const TrendingMarketCard = ({
                         : "white",
                   }}
                 >
-                  <Link to="/signup">Sign up to trade</Link>
+                  <Link to="/auth/login">Login to trade</Link>
                 </Button>
               )}
 
@@ -459,12 +459,9 @@ const TrendingMarketCard = ({
                         : "white",
                   }}
                 >
-                  <Link to="/create-trading-account">
-                    Create trading account
-                  </Link>
+                  <Link to="/trading-account">Create trading account</Link>
                 </Button>
               )}
-
               {isLoggedIn && hasTradingAccount && (
                 <Button
                   className="w-full"

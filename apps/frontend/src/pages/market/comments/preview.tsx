@@ -1,13 +1,28 @@
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, ChevronDown } from "lucide-react";
+import { ArrowDown, ArrowUp, MessageCircle, Send } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TCommentSchema } from "@/schemas/market/schema";
+import { useEffect, useRef, useState } from "react";
+import { EOrderType } from "@/schemas/orders/schema";
+import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
+import { IOutcome } from "@/lib/market";
+import { useCreateComment, useVoteComment } from "@/schemas/comment/hooks";
+import { CommentVoteType, TVoteCommentRequest } from "@/schemas/comment/schema";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface CommentPreviewProps {
+  marketId: number;
   comments: TCommentSchema[];
+  orderType: EOrderType;
+  isLoggedIn: boolean;
+  hasTradingAccount: boolean;
+  selectedOutcome: IOutcome;
   onShowMore: () => void;
-  maxPreview?: number;
 }
 
 const formatTimeAgo = (date: Date) => {
@@ -21,12 +36,53 @@ const formatTimeAgo = (date: Date) => {
 };
 
 export const CommentPreview = ({
+  marketId,
   comments,
+  orderType,
+  isLoggedIn,
+  hasTradingAccount,
+  selectedOutcome,
   onShowMore,
-  maxPreview = 3,
 }: CommentPreviewProps) => {
-  const previewComments = comments.slice(0, maxPreview);
-  const hasMore = comments.length > maxPreview;
+  const [commentText, setCommentText] = useState("");
+  const [isComposing, setIsComposing] = useState(false);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  const { mutate } = useCreateComment();
+  const { mutate: voteCommentMutate } = useVoteComment();
+
+  useEffect(() => {
+    bottomRef?.current?.scrollIntoView({ behavior: "auto", block: "nearest" });
+  }, [comments, orderType]);
+
+  const handleSubmit = async () => {
+    if (!isLoggedIn || !hasTradingAccount) return;
+    if (!commentText || !commentText.length) return;
+    mutate({
+      marketId,
+      data: {
+        comment: commentText,
+      },
+    });
+    setCommentText("");
+    setIsComposing(false);
+  };
+
+  const handleVote = async (commentId: string, data: TVoteCommentRequest) => {
+    if (!isLoggedIn || !hasTradingAccount) return;
+    voteCommentMutate({
+      marketId,
+      commentId,
+      data,
+    });
+  };
+
+  const canVote = isLoggedIn && hasTradingAccount;
+
+  const voteTooltipMessage = !isLoggedIn
+    ? "Login to vote"
+    : !hasTradingAccount
+      ? "Create trading account to vote"
+      : "";
 
   return (
     <Card>
@@ -40,56 +96,171 @@ export const CommentPreview = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="px-4 pb-4 pt-0 space-y-3">
-        <ScrollArea className="max-h-[180px]">
+        <ScrollArea
+          style={{
+            maxHeight: orderType === EOrderType.LIMIT ? "70px" : "180px",
+          }}
+          className="overflow-y-auto"
+        >
           <div className="space-y-3 pr-2">
-            {previewComments.map((comment) => (
-              <div
-                key={comment.id}
-                className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
-              >
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-bet-positive to-bet-positive/60 flex items-center justify-center text-bet-positive-foreground text-sm font-semibold flex-shrink-0">
-                  {comment?.account?.user?.name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium truncate">
-                      {comment?.account?.user?.name || "Anonymous"}
-                    </span>
-                    {/*{comment.position && (
-                      <span
-                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
-                          comment.position === "yes"
-                            ? "bg-emerald-500/20 text-emerald-400"
-                            : "bg-red-500/20 text-red-400"
-                        }`}
-                      >
-                        {comment.position.toUpperCase()}
-                      </span>
-                    )}*/}
-                    <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
-                      {formatTimeAgo(new Date(comment?.createdAt))}
-                    </span>
+            {comments?.map((comment) => {
+              const upvotes = comment?.votes?.filter(
+                (v) => v.vote === "UP",
+              ).length;
+              const downvotes = comment?.votes?.filter(
+                (v) => v.vote === "DOWN",
+              ).length;
+              const isNegative = downvotes > upvotes;
+              const voteStyle = isNegative
+                ? "text-red-400"
+                : "text-emerald-400";
+              return (
+                <div
+                  key={comment.id}
+                  className="flex gap-2 animate-in fade-in slide-in-from-top-2 duration-300"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-bet-positive to-bet-positive/60 flex items-center justify-center text-bet-positive-foreground text-sm font-semibold flex-shrink-0">
+                    {comment.account.user.name?.[0]}
                   </div>
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-                    {comment?.comment}
-                  </p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-medium truncate">
+                        {comment.account.user.name}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground ml-auto shrink-0">
+                        {formatTimeAgo(new Date(comment.createdAt))}
+                      </span>
+                    </div>
+                    <p className={`text-xs line-clamp-2 mt-0.5  ${voteStyle}`}>
+                      {comment.comment}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <div
+                            className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-medium ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                          >
+                            <div
+                              role="button"
+                              aria-disabled={!canVote}
+                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                              onClick={() => {
+                                if (!canVote) return;
+                                handleVote(comment.id, {
+                                  vote: CommentVoteType.UP,
+                                });
+                              }}
+                            >
+                              <ArrowUp className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-400">
+                                {upvotes}
+                              </span>
+                            </div>
+                            <div
+                              role="button"
+                              aria-disabled={!canVote}
+                              className={`flex items-center gap-1 justify-center select-none ${canVote ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                              onClick={() => {
+                                if (!canVote) return;
+                                handleVote(comment.id, {
+                                  vote: CommentVoteType.DOWN,
+                                });
+                              }}
+                            >
+                              <ArrowDown className="w-3 h-3 text-red-400" />
+                              <span className="text-red-400">{downvotes}</span>
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        {!canVote && (
+                          <TooltipContent side="top">
+                            <p>{voteTooltipMessage}</p>
+                          </TooltipContent>
+                        )}
+                      </Tooltip>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
+            <div ref={bottomRef} />
           </div>
         </ScrollArea>
+        <div className="pt-3 border-t border-border">
+          {!isLoggedIn && (
+            <Button
+              className="w-full"
+              style={{
+                backgroundColor: selectedOutcome?.outcomeColor || "default",
+                color:
+                  selectedOutcome?.outcomeColor === "default"
+                    ? "black"
+                    : "white",
+              }}
+              asChild
+            >
+              <Link to="/auth/login">Login to comment</Link>
+            </Button>
+          )}
+          {isLoggedIn && !hasTradingAccount && (
+            <Button
+              className="w-full"
+              style={{
+                backgroundColor: selectedOutcome?.outcomeColor || "default",
+                color:
+                  selectedOutcome?.outcomeColor === "default"
+                    ? "black"
+                    : "white",
+              }}
+              asChild
+            >
+              <Link to="/trading-account">
+                Create trading account to comment
+              </Link>
+            </Button>
+          )}
+          {isLoggedIn && hasTradingAccount && (
+            <div className="mt-2">
+              {!isComposing ? (
+                <div
+                  onClick={() => setIsComposing(true)}
+                  className="flex items-center gap-2 text-xs text-muted-foreground border rounded-md px-2 py-1 hover:bg-muted/50 cursor-pointer"
+                >
+                  <span className="flex-1">Add a comment…</span>
+                  <Send className="w-3 h-3 opacity-60" />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 border rounded-md px-2 py-1 bg-background cursor-text">
+                  <input
+                    autoFocus
+                    type="text"
+                    value={commentText}
+                    onChange={(e) => setCommentText(e.target.value)}
+                    className="flex-1 bg-transparent text-xs outline-none"
+                    placeholder="Write your comment…"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        handleSubmit();
+                        setIsComposing(false);
+                      }
+                      if (e.key === "Escape") setIsComposing(false);
+                    }}
+                  />
 
-        {hasMore && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full text-xs h-8 text-muted-foreground hover:text-foreground"
-            onClick={onShowMore}
-          >
-            <ChevronDown className="h-3 w-3 mr-1" />
-            Show more comments ({comments.length - maxPreview} more)
-          </Button>
-        )}
+                  <button
+                    onClick={() => {
+                      handleSubmit();
+                      setIsComposing(false);
+                    }}
+                    disabled={!commentText.trim()}
+                  >
+                    <Send className="w-4 h-4 text-muted-foreground hover:text-foreground" />
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

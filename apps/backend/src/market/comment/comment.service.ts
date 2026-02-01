@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TAddCommentSchema, TCommentVoteSchema } from './comment.controller';
 import { RedisPublisherService } from 'src/redis/redis.publisher.service';
@@ -101,6 +101,12 @@ export class CommentService {
   }
 
   async commentVote(id: string, accountId: number, body: TCommentVoteSchema) {
+    const doesCommentExist = await this.prismaService.comment.findUnique({
+      where: {
+        id: id,
+      },
+    });
+    if (!doesCommentExist) throw new NotFoundException('Comment not found');
     const existing = await this.prismaService.commentVote.findUnique({
       where: { accountId_commentId: { accountId, commentId: id } },
     });
@@ -118,6 +124,50 @@ export class CommentService {
         data: { vote: body.vote },
       });
     }
+    const comment = await this.prismaService.comment.findUnique({
+      where: {
+        id: id,
+      },
+      include: {
+        account: {
+          select: {
+            id: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        votes: {
+          select: {
+            id: true,
+            vote: true,
+          },
+        },
+        _count: {
+          select: {
+            votes: true,
+          },
+        },
+      },
+    });
+    if (!comment) throw new NotFoundException('Comment not found');
+    const commentEvent: CommentEvent = {
+      type: 'comment',
+      id: comment.id,
+      account: {
+        id: comment.account.id,
+        user: comment.account.user,
+      },
+      marketId: comment.marketId,
+      comment: comment.comment,
+      _count: comment._count,
+      votes: comment.votes,
+      createdAt: comment.createdAt,
+    };
+    await this.redisPublisherService.pushCommentCommand(commentEvent);
     return { success: true };
   }
 }
