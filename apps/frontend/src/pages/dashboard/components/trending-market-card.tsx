@@ -320,7 +320,7 @@ const TrendingMarketCard = ({
     return (
       <div className="bg-card rounded-lg border border-border">
         <div
-          className="p-6 grid grid-cols-1 lg:grid-cols-2 gap-8 hover:cursor-pointer"
+          className="p-6 grid grid-cols-1 lg:grid-cols-[3fr_2fr] gap-6 hover:cursor-pointer"
           onClick={() => {
             navigate(`/market/${trendingMarket?.data?.market?.id}`);
           }}
@@ -333,7 +333,7 @@ const TrendingMarketCard = ({
                 </h2>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {outcomes.slice(0, MAX_OUTCOMES_VISIBLE).map((o, index) => (
                 <OutcomeButton
                   key={o.outcomeId}
@@ -349,13 +349,6 @@ const TrendingMarketCard = ({
                   }}
                 />
               ))}
-              {hasMoreOutcomes && (
-                <Button asChild variant="secondary">
-                  <Link to={`/market/${trendingMarket.data.market.id}`}>
-                    Show more outcomes
-                  </Link>
-                </Button>
-              )}
             </div>
             <div className="space-y-3">
               {mostUpvotedComment && (
@@ -439,6 +432,14 @@ const TrendingMarketCard = ({
                   >
                     <MessageCircle className="w-4 h-4" />
                     <span>More comments</span>
+                  </Link>
+                )}
+                {hasMoreOutcomes && (
+                  <Link
+                    to={`/market/${trendingMarket.data.market.id}`}
+                    className="self-start text-sm font-medium text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+                  >
+                    Show more outcomes →
                   </Link>
                 )}
               </div>

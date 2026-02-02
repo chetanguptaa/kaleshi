@@ -7,10 +7,10 @@ export async function calculatePositionsFromFills(marketId: number) {
   if (!winningOutcome) {
     throw new Error("No winning outcome set");
   }
-  const fills = await db("fills")
-    .join("orders", "fills.orderId", "orders.id")
-    .where("orders.outcomeId", winningOutcome.id)
-    .select("fills.*");
+  const fills = await db("Fill")
+    .join("Order", "Fill.orderId", "Order.id")
+    .where("Order.outcomeId", winningOutcome.id)
+    .select("Fill.*");
   const positions = new Map<number, number>();
   for (const fill of fills) {
     const buyerShares = positions.get(fill.accountId) || 0;

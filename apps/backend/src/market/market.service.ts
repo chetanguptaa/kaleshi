@@ -2,7 +2,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from 'src/prisma.service';
 import { TCreateMarketSchema } from './market.controller';
 import { PrismaClientKnownRequestError } from 'generated/prisma/internal/prismaNamespace';
-import { ROLES } from 'src/constants';
+import { PLATFORM_ACCOUNT_ID, ROLES } from 'src/constants';
 import { TimeseriesService } from 'src/timeseries/timeseries.service';
 import { QueryResultRow } from 'pg';
 import { MarketStatus, OrderSide, TimeInForce } from 'generated/prisma/enums';
@@ -45,8 +45,15 @@ export class MarketService {
             }),
           ),
         );
+        await tx.comment.create({
+          data: {
+            comment: 'Welcome to the market!',
+            accountId: PLATFORM_ACCOUNT_ID,
+            marketId: newMarket.id,
+          },
+        });
         if (body.seedLiquidity !== false) {
-          await this.seedMarketLiquidity(createdOutcomes, newMarket.id);
+          await this.seedData(createdOutcomes, newMarket.id);
         }
         return newMarket;
       });
@@ -322,11 +329,10 @@ export class MarketService {
     });
   }
 
-  private async seedMarketLiquidity(
+  private async seedData(
     outcomes: Array<{ id: string; name: string; marketId: number }>,
     marketId: number,
   ) {
-    const PLATFORM_ACCOUNT_ID = 1;
     const SEED_QUANTITY = 1000;
     // Calculate fair price based on number of outcomes
     // For 3 outcomes: each starts at ~33.33¢

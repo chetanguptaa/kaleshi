@@ -7,7 +7,7 @@ export async function cancelOpenOrdersAndRefund(marketId: number) {
     .whereIn("outcomeId", outcomeIds)
     .where("status", "OPEN");
   for (const order of openOrders) {
-    if (order.side === "BUY") {
+    if (order.side === "Buy") {
       const lockedAmount = order.quantity * order.price;
       await db("accounts")
         .where({ id: order.accountId })
@@ -16,12 +16,12 @@ export async function cancelOpenOrdersAndRefund(marketId: number) {
           reservedCoins: db.raw("reservedCoins - ?", [lockedAmount]),
         });
     }
-    if (order.side === "SELL") {
+    if (order.side === "Sell") {
       // Just cancel - shares are automatically "unlocked"
       // when order status changes from OPEN to CANCELLED
       // No coin refund needed
       // User keeps their shares and gets payout in next step
     }
-    await db("orders").where({ id: order.id }).update({ status: "CANCELLED" });
+    await db("Order").where({ id: order.id }).update({ status: "CANCELLED" });
   }
 }
