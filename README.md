@@ -3,6 +3,7 @@
 > A high-performance, real-time prediction market application inspired by Kalshi.
 
 ![Dashboard](./screenshots/dashboard.png)
+![Market](./screenshots/market.png)
 
 <!-- Space for more screenshots -->
 
