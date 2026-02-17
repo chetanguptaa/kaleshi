@@ -78,7 +78,7 @@ This project is a monorepo managed by [Turborepo](https://turbo.build/).
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/yourusername/kaleshi.git
+   git clone https://github.com/chetanguptaa/kaleshi.git
    cd kaleshi
    ```
 
@@ -87,12 +87,7 @@ This project is a monorepo managed by [Turborepo](https://turbo.build/).
    pnpm install
    ```
 
-3. Start required infrastructure (Postgres, Redis, TimescaleDB):
-   ```bash
-   docker compose up -d
-   ```
-
-4. Run the development server:
+3. Run the development server:
    ```bash
    turbo run dev
    ```
